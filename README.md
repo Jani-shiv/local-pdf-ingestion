@@ -1,9 +1,10 @@
 <div align="center">
 
+<img src="docs/images/00-cover.png" alt="Local PDF ingestion pipeline cover" width="100%">
+
 # 📄 Local PDF Ingestion
 
 ### Build a private, local-first knowledge dataset from your PDFs
-
 <p>
   <a href="https://github.com/Jani-shiv/local-pdf-ingestion/stargazers"><img src="https://img.shields.io/github/stars/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=yellow" alt="GitHub stars"></a>
   <a href="https://github.com/Jani-shiv/local-pdf-ingestion/network/members"><img src="https://img.shields.io/github/forks/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=blue" alt="GitHub forks"></a>
@@ -13,12 +14,24 @@
 
 </div>
 
-> Turn a PDF into a searchable knowledge dataset using **Python**, **PyMuPDF**
+> Turn a PDF into a searchable knowledge dataset using **Python**, **PyMuPDF**,
 > and a local **Ollama** embedding model. Nothing leaves your machine.
+
+## 🧭 Project overview
+
+This is step 1 of a local RAG (Retrieval-Augmented Generation) series: the
+ingestion layer. It does **not** include similarity search or a chatbot yet.
+
+| Input | Processing | Output |
+|---|---|---|
+| PDF with selectable text | Extract → chunk → embed locally | JSON knowledge dataset |
 
 <div align="center">
 
-![Pipeline](docs/images/01-pipeline.png)
+<img src="docs/images/01-pipeline.png" alt="PDF extraction, chunking, embedding, and JSON storage pipeline" width="100%">
+
+<br>
+<em>PDF → extract text → chunk → embed with Ollama → save JSON</em>
 
 </div>
 
@@ -26,8 +39,8 @@
 
 <table>
 <tr>
-<td width="70">
-<img src="https://github.com/Jani-shiv.png" width="56" alt="Shiv Jani">
+<td width="96" align="center">
+<img src="https://github.com/Jani-shiv.png" width="80" alt="Shiv Jani">
 </td>
 <td>
 
@@ -52,13 +65,6 @@ systems, and modern deployment workflows.
   <a href="https://github.com/Jani-shiv?tab=following"><img src="https://img.shields.io/badge/Following-19-EC4899?style=flat-square&logo=github" alt="19 following"></a>
 </p>
 
-This is step 1 of a local RAG (Retrieval-Augmented Generation) series: the
-ingestion layer. It does **not** include similarity search or a chatbot yet.
-
-```
-PDF -> extract text -> chunk -> embed (Ollama) -> save JSON
-```
-
 ## ✨ What it does
 
 The pipeline:
@@ -71,6 +77,21 @@ The pipeline:
 The project is intentionally small and local-first. It does not upload documents
 or embeddings to a hosted service, and it does not yet provide vector search or
 a chatbot.
+
+## 🖼️ Visual guide
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="docs/images/02-chunking-overlap.png" alt="Chunking and overlap illustration" width="100%">
+<br><strong>Chunking with overlap</strong>
+</td>
+<td width="50%" align="center">
+<img src="docs/images/03-embeddings-concept.png" alt="Embedding concept illustration" width="100%">
+<br><strong>Local embeddings</strong>
+</td>
+</tr>
+</table>
 
 ## 🧰 Requirements
 
