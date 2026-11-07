@@ -1,16 +1,65 @@
-# Local PDF Ingestion
+<div align="center">
 
-Turn a PDF into a searchable knowledge dataset using **Python**, **PyMuPDF** and a local **Ollama** embedding model. Nothing leaves your machine.
+# 📄 Local PDF Ingestion
+
+### Build a private, local-first knowledge dataset from your PDFs
+
+<p>
+  <a href="https://github.com/Jani-shiv/local-pdf-ingestion/stargazers"><img src="https://img.shields.io/github/stars/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=yellow" alt="GitHub stars"></a>
+  <a href="https://github.com/Jani-shiv/local-pdf-ingestion/network/members"><img src="https://img.shields.io/github/forks/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=blue" alt="GitHub forks"></a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge" alt="MIT License">
+</p>
+
+</div>
+
+> Turn a PDF into a searchable knowledge dataset using **Python**, **PyMuPDF**
+> and a local **Ollama** embedding model. Nothing leaves your machine.
+
+<div align="center">
 
 ![Pipeline](docs/images/01-pipeline.png)
 
-This is step 1 of a local RAG (Retrieval-Augmented Generation) series: the ingestion layer. It does **not** include similarity search or a chatbot yet.
+</div>
+
+## 👋 About the author
+
+<table>
+<tr>
+<td width="70">
+<img src="https://github.com/Jani-shiv.png" width="56" alt="Shiv Jani">
+</td>
+<td>
+
+### Shiv Jani · `Jani-shiv`
+
+**DevOps Engineer & Cloud Enthusiast** passionate about automation, scalable
+systems, and modern deployment workflows.
+
+📍 **Ahmedabad, Gujarat** &nbsp;·&nbsp; 🏢 **Elastic** &nbsp;·&nbsp; **he/him**
+
+<a href="https://github.com/Jani-shiv">GitHub</a> ·
+<a href="https://jani-shiv.github.io/Shiv_Jani/">Portfolio</a> ·
+<a href="https://www.linkedin.com/in/shiv-jani">LinkedIn</a> ·
+<a href="https://www.instagram.com/jani._.712/">Instagram</a>
+
+</td>
+</tr>
+</table>
+
+<p>
+  <a href="https://github.com/Jani-shiv?tab=followers"><img src="https://img.shields.io/badge/Followers-35-8B5CF6?style=flat-square&logo=github" alt="35 followers"></a>
+  <a href="https://github.com/Jani-shiv?tab=following"><img src="https://img.shields.io/badge/Following-19-EC4899?style=flat-square&logo=github" alt="19 following"></a>
+</p>
+
+This is step 1 of a local RAG (Retrieval-Augmented Generation) series: the
+ingestion layer. It does **not** include similarity search or a chatbot yet.
 
 ```
 PDF -> extract text -> chunk -> embed (Ollama) -> save JSON
 ```
 
-## What it does
+## ✨ What it does
 
 The pipeline:
 
@@ -23,13 +72,13 @@ The project is intentionally small and local-first. It does not upload documents
 or embeddings to a hosted service, and it does not yet provide vector search or
 a chatbot.
 
-## Requirements
+## 🧰 Requirements
 
 - Python 3.10 or later
 - [Ollama](https://ollama.com) installed and running
 - A PDF with **selectable text** (scanned PDFs need OCR first)
 
-## Installation
+## 🚀 Installation
 
 Clone the repository and create a virtual environment:
 
@@ -57,7 +106,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\venv\Scripts\Activate.ps1
 ```
 
-## Run the pipeline
+## ▶️ Run the pipeline
 
 Make sure Ollama is installed and running, then download the default embedding
 model:
@@ -88,7 +137,7 @@ python -m pdf_ingest documents\sample.pdf
 The generated dataset is saved to `output/processed_data.json`. The `output/`
 directory is ignored by Git because it is generated from the input PDF.
 
-## Validate extraction without Ollama
+## 🧪 Validate extraction without Ollama
 
 Use `--dry-run` to extract and chunk a PDF without downloading a model or
 calling the Ollama API:
@@ -104,7 +153,7 @@ $env:PYTHONPATH = "src"
 python -m pdf_ingest documents\sample.pdf --dry-run
 ```
 
-## Command-line options
+## ⚙️ Command-line options
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -126,7 +175,7 @@ PYTHONPATH=src python -m pdf_ingest input.pdf \
   --overlap 200
 ```
 
-## Project layout
+## 🗂️ Project layout
 
 ```
 src/pdf_ingest/
@@ -140,7 +189,7 @@ scripts/       sample PDF + diagram generators
 docs/images/   article diagrams
 ```
 
-## Output format
+## 📦 Output format
 
 ```json
 {
@@ -152,7 +201,7 @@ docs/images/   article diagrams
 
 The model name and chunk settings are stored with the vectors on purpose. Vectors from different embedding models cannot be compared with each other.
 
-## Development
+## 🛠️ Development
 
 Install development dependencies:
 
@@ -169,7 +218,7 @@ pytest
 The Ollama calls are mocked in tests, so a running Ollama server is not needed
 to run the test suite.
 
-## Known limits
+## ⚠️ Known limits
 
 - Character chunking ignores paragraphs, headings and tables.
 - Scanned PDFs return no text. Add an OCR step first.
@@ -178,7 +227,7 @@ to run the test suite.
   document collections.
 - Ollama calls are covered by mocked tests, not by a live server run in CI.
 
-## Troubleshooting
+## 🩹 Troubleshooting
 
 ### `source` is not recognized
 
@@ -208,10 +257,10 @@ ollama --version
 ollama pull nomic-embed-text
 ```
 
-## Next
+## 🧭 Next
 
 Vector search: finding the most relevant chunks for a question.
 
-## License
+## 📜 License
 
 MIT
