@@ -2,286 +2,445 @@
 
 <img src="docs/images/00-cover.png" alt="Local PDF ingestion pipeline cover" width="100%">
 
-# 📄 Local PDF Ingestion
+# 📄 pdf-ingest: Local-First RAG Pipeline
 
-### Build a private, local-first knowledge dataset from your PDFs
+### Build a private, local-first knowledge base from PDFs, audio, web pages, and documents — then chat with it, search it, summarize it, and extract structured data. 100% offline, open source, free.
+
 <p>
   <a href="https://github.com/Jani-shiv/local-pdf-ingestion/stargazers"><img src="https://img.shields.io/github/stars/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=yellow" alt="GitHub stars"></a>
   <a href="https://github.com/Jani-shiv/local-pdf-ingestion/network/members"><img src="https://img.shields.io/github/forks/Jani-shiv/local-pdf-ingestion?style=for-the-badge&logo=github&color=blue" alt="GitHub forks"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge" alt="MIT License">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready">
 </p>
 
 </div>
 
-> Turn a PDF into a searchable knowledge dataset using **Python**, **PyMuPDF**,
-> and a local **Ollama** embedding model. Nothing leaves your machine.
+> **NotebookLM alternative** that runs entirely on your machine. Ingest PDFs, audio recordings, web articles, Word/Excel/PowerPoint files → search with hybrid vector+keyword search → chat with citations → generate summaries, study guides, flashcards, and extract structured data (recipes, invoices, medical reports, contracts).
 
-## 🧭 Project overview
+---
 
-This is step 1 of a local RAG (Retrieval-Augmented Generation) series: the
-ingestion layer. It does **not** include similarity search or a chatbot yet.
+## 🎯 Why pdf-ingest?
 
-| Input | Processing | Output |
-|---|---|---|
-| PDF with selectable text | Extract → chunk → embed locally | JSON knowledge dataset |
+| Feature | NotebookLM | pdf-ingest |
+|---------|-----------|------------|
+| **Privacy** | Google Cloud | 🔒 100% Local |
+| **Cost** | Free tier limits | 💰 Free forever |
+| **File Types** | PDF, Drive docs | 📄 PDF, Audio, Web, DOCX, XLSX, PPTX, Images |
+| **Offline** | ❌ No | ✅ Yes |
+| **Custom Extractors** | ❌ No | ✅ Recipes, Invoices, Medical, Contracts, Study |
+| **Export** | Limited | ✅ JSON, Markdown, Anki CSV, CSV |
+| **API** | ❌ No | ✅ FastAPI + WebSocket |
+| **UI** | Web only | ✅ Streamlit + CLI + API |
 
-<div align="center">
+---
 
-<img src="docs/images/01-pipeline.png" alt="PDF extraction, chunking, embedding, and JSON storage pipeline" width="100%">
+## ✨ Features
 
-<br>
-<em>PDF → extract text → chunk → embed with Ollama → save JSON</em>
+### 🔄 Multi-Source Ingestion
+- **PDFs** — Text extraction (PyMuPDF) + OCR (Tesseract/PaddleOCR) for scanned docs
+- **Audio** — Local transcription with faster-whisper (no API keys)
+- **Web** — Clean article extraction via trafilatura
+- **Office** — DOCX, XLSX, PPTX text extraction
+- **Images** — OCR on PNG/JPG/TIFF
 
-</div>
+### 🧠 Smart Processing
+- **Semantic Chunking** — Sentence-aware with overlap (not naive character splitting)
+- **Recursive Chunking** — Paragraph → sentence → word fallback
+- **Local Embeddings** — Ollama (nomic-embed-text) + SentenceTransformers fallback
+- **Vector Stores** — FAISS (lightweight) or ChromaDB (persistent)
 
-## 👋 About the author
+### 🔍 Hybrid Search
+- **Vector Similarity** — Cosine similarity via FAISS/Chroma
+- **Keyword (BM25)** — Rank-BM25 for exact term matching
+- **Hybrid Fusion** — Best of both worlds
 
-<table>
-<tr>
-<td width="96" align="center">
-<img src="https://github.com/Jani-shiv.png" width="80" alt="Shiv Jani">
-</td>
-<td>
+### 💬 RAG Chat with Citations
+- **Streaming Responses** — Token-by-token via Ollama
+- **Source Citations** — Every answer cites `[chunk_id]` with page numbers
+- **Conversation History** — Multi-turn context
+- **Configurable** — Model, temperature, top-k, threshold
 
-### Shiv Jani · `Jani-shiv`
+### 📝 Summarization & Study Tools
+- **Map-Reduce Summaries** — Handles arbitrarily long documents
+- **Key Points Extraction** — Bullet-point takeaways
+- **Study Guides** — Flashcards (Anki export), Mind Maps, Quizzes
+- **Multiple Formats** — JSON, Markdown, CSV
 
-**DevOps Engineer & Cloud Enthusiast** passionate about automation, scalable
-systems, and modern deployment workflows.
+### 🎯 Domain-Specific Extractors
+| Extractor | Output | Use Case |
+|-----------|--------|----------|
+| **Recipes** | Structured ingredients, steps, nutrition | Cookbooks, food blogs |
+| **Invoices** | Vendor, line items, totals, categories | Expense tracking, bookkeeping |
+| **Medical** | Lab values with flags, summaries, medications | Patient reports, lab results |
+| **Contracts** | Clauses, risk flags, obligation calendar | Freelance, legal review |
+| **Study** | Flashcards, mind maps, quizzes | Students, certifications |
 
-📍 **Ahmedabad, Gujarat** &nbsp;·&nbsp; 🏢 **Elastic** &nbsp;·&nbsp; **he/him**
+### 🖥️ Multiple Interfaces
+- **CLI** — `pdf-ingest ingest/chat/search/summarize/study/extract`
+- **Streamlit Web UI** — Drag-drop, chat, search, visualize
+- **FastAPI** — REST + WebSocket for integrations
+- **Python Library** — `from pdf_ingest import ...`
 
-<a href="https://github.com/Jani-shiv">GitHub</a> ·
-<a href="https://jani-shiv.github.io/Shiv_Jani/">Portfolio</a> ·
-<a href="https://www.linkedin.com/in/shiv-jani">LinkedIn</a> ·
-<a href="https://www.instagram.com/jani._.712/">Instagram</a>
+---
 
-</td>
-</tr>
-</table>
+## 🚀 Quick Start
 
-<p>
-  <a href="https://github.com/Jani-shiv?tab=followers"><img src="https://img.shields.io/badge/Followers-35-8B5CF6?style=flat-square&logo=github" alt="35 followers"></a>
-  <a href="https://github.com/Jani-shiv?tab=following"><img src="https://img.shields.io/badge/Following-19-EC4899?style=flat-square&logo=github" alt="19 following"></a>
-</p>
+### Prerequisites
+- Python 3.10+
+- [Ollama](https://ollama.com) installed and running (`ollama serve`)
+- Embedding model: `ollama pull nomic-embed-text`
+- LLM model: `ollama pull llama3.1:8b` (or `phi3:mini`, `mistral:7b`)
 
-## ✨ What it does
-
-The pipeline:
-
-1. Extracts selectable text from each PDF page with PyMuPDF.
-2. Splits the text into overlapping character chunks.
-3. Generates embeddings locally through Ollama.
-4. Writes chunk text, metadata, and vectors to a JSON dataset.
-
-The project is intentionally small and local-first. It does not upload documents
-or embeddings to a hosted service, and it does not yet provide vector search or
-a chatbot.
-
-## 🖼️ Visual guide
-
-<table>
-<tr>
-<td width="50%" align="center">
-<img src="docs/images/02-chunking-overlap.png" alt="Chunking and overlap illustration" width="100%">
-<br><strong>Chunking with overlap</strong>
-</td>
-<td width="50%" align="center">
-<img src="docs/images/03-embeddings-concept.png" alt="Embedding concept illustration" width="100%">
-<br><strong>Local embeddings</strong>
-</td>
-</tr>
-</table>
-
-## 🧰 Requirements
-
-- Python 3.10 or later
-- [Ollama](https://ollama.com) installed and running
-- A PDF with **selectable text** (scanned PDFs need OCR first)
-
-## 🚀 Installation
-
-Clone the repository and create a virtual environment:
+### Installation
 
 ```bash
+# Clone and setup
 git clone https://github.com/Jani-shiv/local-pdf-ingestion.git
 cd local-pdf-ingestion
 
+# Using uv (recommended, fast)
+uv sync
+
+# Or traditional venv
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### Windows PowerShell
-
-```powershell
-.\venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
-
-If PowerShell blocks activation scripts, allow scripts only for the current
-session:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\venv\Scripts\Activate.ps1
-```
-
-## ▶️ Run the pipeline
-
-Make sure Ollama is installed and running, then download the default embedding
-model:
+### CLI Usage
 
 ```bash
-ollama pull nomic-embed-text
+# Ingest a PDF
+pdf-ingest ingest document.pdf
+
+# Ingest multiple files + directory
+pdf-ingest ingest file1.pdf file2.docx ./documents --recursive
+
+# Ingest from URLs
+pdf-ingest ingest --urls "https://example.com/article https://blog.post"
+
+# Chat with your knowledge base
+pdf-ingest chat "Summarize the key findings"
+
+# Search
+pdf-ingest search "machine learning"
+
+# Summarize everything
+pdf-ingest summarize --style detailed
+
+# Generate study materials
+pdf-ingest study --format flashcards --anki  # Exports Anki CSV
+
+# Extract structured data
+pdf-ingest extract recipes --format markdown
+pdf-ingest extract invoices --format csv
+pdf-ingest extract medical --format json
 ```
 
-Generate the included sample PDF if needed:
+### Streamlit Web UI
 
 ```bash
-python scripts/make_sample_pdf.py
+streamlit run web/app.py
 ```
+Then open http://localhost:8501
 
-Run ingestion on Linux/macOS:
+### Docker (Recommended for Production)
 
 ```bash
-PYTHONPATH=src python -m pdf_ingest documents/sample.pdf
+# Start everything (Ollama + pdf-ingest + optional API)
+docker-compose up -d
+
+# Access:
+# - Streamlit UI: http://localhost:8501
+# - FastAPI: http://localhost:8000/docs
+# - Ollama: http://localhost:11434
 ```
 
-Run ingestion in Windows PowerShell:
+---
 
-```powershell
-$env:PYTHONPATH = "src"
-python -m pdf_ingest documents\sample.pdf
-```
+## 📖 Detailed Usage
 
-The generated dataset is saved to `output/processed_data.json`. The `output/`
-directory is ignored by Git because it is generated from the input PDF.
+### Configuration
 
-## 🧪 Validate extraction without Ollama
-
-Use `--dry-run` to extract and chunk a PDF without downloading a model or
-calling the Ollama API:
+Create a `.env` file or set environment variables:
 
 ```bash
-PYTHONPATH=src python -m pdf_ingest documents/sample.pdf --dry-run
+# Ollama
+OLLAMA_URL=http://localhost:11434
+EMBED_MODEL=nomic-embed-text
+LLM_MODEL=llama3.1:8b
+
+# Chunking
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=150
+CHUNK_STRATEGY=semantic  # semantic, recursive, character
+
+# Vector Store
+VECTOR_STORE=faiss  # or chroma
+VECTOR_STORE_PATH=./data/vector_store
+
+# Search
+TOP_K=5
+SIMILARITY_THRESHOLD=0.3
+USE_HYBRID_SEARCH=true
+
+# LLM
+TEMPERATURE=0.1
+MAX_TOKENS=2048
 ```
 
-Windows PowerShell:
+### Python API
 
-```powershell
-$env:PYTHONPATH = "src"
-python -m pdf_ingest documents\sample.pdf --dry-run
+```python
+from pdf_ingest import (
+    IngestionPipeline, KnowledgeBase,
+    RecipeExtractor, InvoiceExtractor,
+)
+
+# Build pipeline
+pipeline = IngestionPipeline(vector_store_path="./data/my_kb")
+
+# Ingest various sources
+pipeline.ingest_pdf("document.pdf", use_ocr=True)
+pipeline.ingest_audio("meeting.wav")
+pipeline.ingest_web(["https://example.com/article"])
+pipeline.ingest_office("report.docx")
+pipeline.ingest_directory("./documents", recursive=True)
+
+# Create knowledge base for querying
+kb = KnowledgeBase("./data/my_kb")
+kb.initialize_chat(model="llama3.1:8b")
+
+# Chat with citations
+response = kb.ask("What are the main conclusions?")
+print(response.content)
+for source in response.sources:
+    print(f"  [{source.id}] Page {source.page}")
+
+# Stream responses
+for chunk in kb.ask_stream("Explain the methodology"):
+    print(chunk, end="", flush=True)
+
+# Summarize
+summary = kb.summarize_all(max_length=500, style="concise")
+print(summary.text)
+print(summary.key_points)
+
+# Generate study guide (Anki-ready)
+guide = kb.generate_study_guide("flashcards")
+print(guide.to_anki_csv())
+
+# Extract structured data
+recipes = kb.extract_recipes()
+invoices = kb.extract_invoices()
+medical = kb.extract_medical()
+contracts = kb.extract_contracts()
+
+for recipe in recipes:
+    print(recipe.to_markdown())
 ```
 
-## ⚙️ Command-line options
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `-o, --output` | `output/processed_data.json` | Where to save the dataset |
-| `--model` | `nomic-embed-text` | Ollama embedding model |
-| `--ollama-url` | `http://localhost:11434` | Ollama server |
-| `--chunk-size` | `1000` | Characters per chunk |
-| `--overlap` | `150` | Characters shared between neighbouring chunks |
-| `--batch-size` | `16` | Chunks sent to Ollama per request |
-| `--dry-run` | off | Skip embeddings |
-
-Example with custom settings:
+### FastAPI Endpoints
 
 ```bash
-PYTHONPATH=src python -m pdf_ingest input.pdf \
-  --output output/custom.json \
-  --model nomic-embed-text \
-  --chunk-size 1200 \
-  --overlap 200
+# Start API server
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+# Interactive docs at http://localhost:8000/docs
 ```
 
-## 🗂️ Project layout
+| Endpoint | Description |
+|----------|-------------|
+| `POST /ingest/file` | Upload files (multipart) |
+| `POST /ingest/urls` | Ingest from URLs |
+| `POST /ingest/directory` | Ingest directory |
+| `POST /chat` | Chat with KB (with citations) |
+| `POST /chat/stream` | Streaming chat (SSE) |
+| `POST /search` | Hybrid search |
+| `POST /summarize` | Generate summary |
+| `POST /study` | Generate study materials |
+| `POST /extract` | Extract structured data |
+| `GET /kb/stats` | Knowledge base stats |
+| `DELETE /kb` | Delete knowledge base |
+
+---
+
+## 🏗️ Architecture
 
 ```
-src/pdf_ingest/
-  extract.py   PyMuPDF text extraction (page by page)
-  chunk.py     character chunking with overlap
-  embed.py     batched calls to Ollama /api/embed
-  store.py     JSON dataset with metadata
-  cli.py       command line interface
-tests/         pytest suite (Ollama is mocked)
-scripts/       sample PDF + diagram generators
-docs/images/   article diagrams
+pdf-ingest/
+├── src/pdf_ingest/           # Core library (pip installable)
+│   ├── config.py             # Pydantic settings management
+│   ├── extract.py            # PDF text extraction (PyMuPDF)
+│   ├── extract_audio.py      # Audio transcription (faster-whisper)
+│   ├── extract_web.py        # Web article extraction (trafilatura)
+│   ├── extract_ocr.py        # OCR for scanned PDFs/images
+│   ├── extract_office.py     # DOCX, XLSX, PPTX extraction
+│   ├── chunk.py              # Semantic/recursive/character chunking
+│   ├── embed.py              # Ollama + SentenceTransformers embeddings
+│   ├── store.py              # JSON + FAISS/Chroma vector stores
+│   ├── search.py             # Hybrid vector + BM25 search
+│   ├── chat.py               # RAG chat with streaming + citations
+│   ├── summarize.py          # Map-reduce summaries + study guides
+│   ├── pipeline.py           # Unified ingestion + KB management
+│   ├── specialize/           # Domain extractors
+│   │   ├── recipe.py         # Recipe extraction
+│   │   ├── invoice.py        # Invoice/receipt extraction
+│   │   ├── medical.py        # Medical report extraction
+│   │   ├── contract.py       # Contract analysis
+│   │   └── study.py          # Study guide generation
+│   └── cli.py                # Rich CLI with subcommands
+├── web/app.py                # Streamlit web UI
+├── api/main.py               # FastAPI REST + WebSocket API
+├── docker-compose.yml        # Multi-container deployment
+├── Dockerfile                # Streamlit container
+├── Dockerfile.api            # API container
+├── pyproject.toml            # Modern packaging
+└── tests/                    # Pytest suite
 ```
 
-## 📦 Output format
+---
 
-```json
-{
-  "meta": {"source": "sample.pdf", "model": "nomic-embed-text", "dimensions": 768,
-           "chunk_size": 1000, "overlap": 150, "chunk_count": 6, "created_at": "..."},
-  "chunks": [{"id": "p1-c0", "page": 1, "chunk": 0, "text": "...", "embedding": [0.01, "..."]}]
-}
+## 🔧 Advanced Configuration
+
+### Chunking Strategies
+
+| Strategy | Best For | Description |
+|----------|----------|-------------|
+| `semantic` | General docs | Sentence-aware using embeddings |
+| `recursive` | Structured docs | Paragraph → sentence → word fallback |
+| `character` | Simple/legacy | Fixed-size with overlap |
+
+### Embedding Options
+
+```python
+# Use Ollama (default)
+embed_texts(texts, use_local=False)
+
+# Use local SentenceTransformers (no Ollama needed)
+embed_texts(texts, use_local=True)  # Uses all-MiniLM-L6-v2
 ```
 
-The model name and chunk settings are stored with the vectors on purpose. Vectors from different embedding models cannot be compared with each other.
-
-## 🛠️ Development
-
-Install development dependencies:
+### Vector Store Selection
 
 ```bash
-pip install -r requirements-dev.txt
+# FAISS (default, lightweight, file-based)
+VECTOR_STORE=faiss
+
+# ChromaDB (persistent, more features)
+VECTOR_STORE=chroma
 ```
 
-Run the test suite:
+### Custom Domain Extractors
+
+```python
+from pdf_ingest import RAGChat, KnowledgeBase
+from pdf_ingest.specialize import RecipeExtractor
+
+kb = KnowledgeBase("./data/kb")
+kb.initialize_chat()
+
+# Use built-in
+recipes = kb.extract_recipes()
+
+# Or create custom
+chat = RAGChat("./data/kb", dimension=768)
+extractor = RecipeExtractor(chat)
+recipes = extractor.extract(chunks)
+```
+
+---
+
+## 🧪 Testing
 
 ```bash
+# Run all tests
 pytest
+
+# With coverage
+pytest --cov=pdf_ingest
+
+# Specific test file
+pytest tests/test_pipeline.py -v
 ```
 
-The Ollama calls are mocked in tests, so a running Ollama server is not needed
-to run the test suite.
+---
 
-## ⚠️ Known limits
+## 📦 Project Structure
 
-- Character chunking ignores paragraphs, headings and tables.
-- Scanned PDFs return no text. Add an OCR step first.
-- JSON is fine for learning. For large collections use a vector database.
-- The default output is one JSON file, which is not suitable for very large
-  document collections.
-- Ollama calls are covered by mocked tests, not by a live server run in CI.
-
-## 🩹 Troubleshooting
-
-### `source` is not recognized
-
-`source venv/bin/activate` is for Bash. In Windows PowerShell, use:
-
-```powershell
-.\venv\Scripts\Activate.ps1
+```
+local-pdf-ingestion/
+├── src/pdf_ingest/           # Core library
+├── web/app.py                # Streamlit UI
+├── api/main.py               # FastAPI backend
+├── documents/                # Sample inputs
+├── output/                   # Generated outputs (gitignored)
+├── data/                     # Vector stores (gitignored)
+├── docs/images/              # Documentation images
+├── tests/                    # Test suite
+├── scripts/                  # Utility scripts
+├── pyproject.toml            # Packaging config
+├── requirements.txt          # Dependencies
+├── requirements-dev.txt      # Dev dependencies
+├── docker-compose.yml        # Docker orchestration
+├── Dockerfile                # Streamlit image
+├── Dockerfile.api            # API image
+├── .env.example              # Config template
+├── LICENSE                   # MIT License
+└── README.md                 # This file
 ```
 
-### `PYTHONPATH=src` is not recognized
+---
 
-That inline environment-variable syntax is for Bash. In Windows PowerShell,
-use:
+## 🤝 Contributing
 
-```powershell
-$env:PYTHONPATH = "src"
-python -m pdf_ingest documents\sample.pdf
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Install dev dependencies: `uv sync --extra dev`
+4. Make changes with tests
+5. Run linting: `ruff check . && mypy src/`
+6. Run tests: `pytest`
+7. Submit a Pull Request
 
-### `ollama` is not recognized
+### Code Style
+- **Formatter**: Ruff (line-length 100)
+- **Type Checking**: MyPy (strict)
+- **Tests**: Pytest with mocks (no external services needed)
 
-Install Ollama from [ollama.com](https://ollama.com), restart the terminal,
-ensure the Ollama application is running, and verify:
+---
 
-```powershell
-ollama --version
-ollama pull nomic-embed-text
-```
+## 📄 License
 
-## 🧭 Next
+MIT License — see [LICENSE](LICENSE) for details.
 
-Vector search: finding the most relevant chunks for a question.
+---
 
-## 📜 License
+## 🙏 Acknowledgments
 
-MIT
+- [Ollama](https://ollama.com) — Local LLM inference
+- [PyMuPDF](https://pymupdf.readthedocs.io) — PDF processing
+- [FAISS](https://github.com/facebookresearch/faiss) — Vector search
+- [SentenceTransformers](https://www.sbert.net) — Local embeddings
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — Audio transcription
+- [trafilatura](https://trafilatura.readthedocs.io) — Web extraction
+- [Streamlit](https://streamlit.io) — Web UI
+- [FastAPI](https://fastapi.tiangolo.com) — API framework
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/Jani-shiv/local-pdf-ingestion/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Jani-shiv/local-pdf-ingestion/discussions)
+- **Author**: [Shiv Jani](https://github.com/Jani-shiv) — DevOps Engineer @ Elastic
+
+---
+
+<div align="center">
+
+**Star ⭐ this repo if you find it useful!**
+
+Made with ❤️ for the open-source community
+
+</div>
