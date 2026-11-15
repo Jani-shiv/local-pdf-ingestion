@@ -37,6 +37,7 @@ from .specialize import (
     StudyExtractor, StudyGuide,
 )
 from .logging import setup_logging, get_logger, LogContext, JSONFormatter, ColoredFormatter
+from .validation import InputValidator, ConfigurationError as ValidationConfigurationError
 
 __version__ = "0.2.0"
 
@@ -66,4 +67,6 @@ __all__ = [
     "settings", "ConfigurationError",
     # Logging
     "setup_logging", "get_logger", "LogContext", "JSONFormatter", "ColoredFormatter",
+    # Validation
+    "InputValidator", "ValidationConfigurationError",
 ]

@@ -9,6 +9,12 @@ from pathlib import Path
 from .config import settings
 from .pipeline import IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base
 from .specialize import Recipe, Invoice, MedicalReport, Contract, StudyGuide
+from .validation import (
+    InputValidator,
+    ConfigurationError,
+    validate_output_path,
+    validate_store_path,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -79,6 +85,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_ingest(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_ingest_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     pipeline = create_pipeline(
         vector_store_path=args.output,
         chunk_size=args.chunk_size,
@@ -111,6 +124,13 @@ def cmd_ingest(args) -> int:
 
 
 def cmd_chat(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_chat_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
     kb.initialize_chat(model=args.model)
 
@@ -152,6 +172,13 @@ def cmd_chat(args) -> int:
 
 
 def cmd_search(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_search_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
     from .search import search
     results = search(args.query, args.store, kb.store.dimension, args.top_k, args.threshold)
@@ -170,6 +197,13 @@ def cmd_search(args) -> int:
 
 
 def cmd_summarize(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_summarize_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
     summary = kb.summarize_all(max_length=args.max_length, style=args.style)
 
@@ -180,8 +214,9 @@ def cmd_summarize(args) -> int:
     }
 
     if args.output:
-        Path(args.output).write_text(json.dumps(output, indent=2))
-        print(f"Saved to {args.output}")
+        output_path = validate_output_path(args.output)
+        output_path.write_text(json.dumps(output, indent=2))
+        print(f"Saved to {output_path}")
     else:
         print(f"Summary:\n{summary.text}")
         if summary.key_points:
@@ -192,6 +227,13 @@ def cmd_summarize(args) -> int:
 
 
 def cmd_study(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_study_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
     result = kb.generate_study_guide(args.format)
 
@@ -203,14 +245,22 @@ def cmd_study(args) -> int:
         output = json.dumps(result, indent=2, ensure_ascii=False)
 
     if args.output:
-        Path(args.output).write_text(output)
-        print(f"Saved to {args.output}")
+        output_path = validate_output_path(args.output)
+        output_path.write_text(output)
+        print(f"Saved to {output_path}")
     else:
         print(output)
     return 0
 
 
 def cmd_extract(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_extract_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
 
     extractors = {
@@ -241,14 +291,22 @@ def cmd_extract(args) -> int:
         output = json.dumps([item.to_dict() for item in items], indent=2, ensure_ascii=False)
 
     if args.output:
-        Path(args.output).write_text(output)
-        print(f"Saved {len(items)} {args.type} to {args.output}")
+        output_path = validate_output_path(args.output)
+        output_path.write_text(output)
+        print(f"Saved {len(items)} {args.type} to {output_path}")
     else:
         print(output)
     return 0
 
 
 def cmd_list(args) -> int:
+    # Validate inputs
+    try:
+        InputValidator.validate_list_args(args)
+    except ConfigurationError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        return 1
+
     kb = create_knowledge_base(args.store)
     print(f"Vector store: {args.store}")
     print(f"Total chunks: {kb.store.count}")
