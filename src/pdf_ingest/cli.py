@@ -15,6 +15,7 @@ from .validation import (
     validate_output_path,
     validate_store_path,
 )
+from .progress import progress_bar, track
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -99,22 +100,48 @@ def cmd_ingest(args) -> int:
         strategy=args.strategy,
     )
 
-    all_results = []
+    # Collect all files to process
+    files_to_process: list[Path] = []
     for path_str in args.paths:
         path = Path(path_str)
         if path.is_dir():
-            results = pipeline.ingest_directory(path, recursive=args.recursive)
-            all_results.extend(results)
+            pattern = "**/*" if args.recursive else "*"
+            for file_path in path.glob(pattern):
+                if file_path.is_file() and file_path.suffix.lower() in {
+                    ".pdf", ".mp3", ".wav", ".m4a", ".flac", ".ogg",
+                    ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp",
+                }:
+                    files_to_process.append(file_path)
         else:
-            suffix = path.suffix.lower()
-            if suffix == ".pdf":
-                all_results.append(pipeline.ingest_pdf(path, use_ocr=args.ocr))
-            elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
-                all_results.append(pipeline.ingest_audio(path))
-            elif suffix in (".docx", ".xlsx", ".pptx"):
-                all_results.append(pipeline.ingest_office(path))
-            else:
-                print(f"Skipping unsupported file: {path}", file=sys.stderr)
+            files_to_process.append(path)
+
+    all_results = []
+
+    # Process files with progress bar
+    with progress_bar(total=len(files_to_process), desc="Ingesting", unit="file") as pbar:
+        for file_path in files_to_process:
+            pbar.set_description(f"Ingesting {file_path.name}")
+            suffix = file_path.suffix.lower()
+
+            try:
+                if suffix == ".pdf":
+                    result = pipeline.ingest_pdf(file_path, use_ocr=args.ocr)
+                    all_results.append(result)
+                elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
+                    result = pipeline.ingest_audio(file_path)
+                    all_results.append(result)
+                elif suffix in (".docx", ".xlsx", ".pptx"):
+                    result = pipeline.ingest_office(file_path)
+                    all_results.append(result)
+                elif suffix in (".png", ".jpg", ".jpeg", ".tiff", ".bmp"):
+                    # Could add image OCR here
+                    print(f"Skipping image (OCR not yet supported): {file_path}", file=sys.stderr)
+                else:
+                    print(f"Skipping unsupported file: {file_path}", file=sys.stderr)
+            except Exception as e:
+                print(f"Failed to ingest {file_path}: {e}", file=sys.stderr)
+
+            pbar.update(1)
 
     print(f"\nIngested {len(all_results)} source(s):")
     for r in all_results:

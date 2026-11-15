@@ -38,6 +38,16 @@ from .specialize import (
 )
 from .logging import setup_logging, get_logger, LogContext, JSONFormatter, ColoredFormatter
 from .validation import InputValidator, ConfigurationError as ValidationConfigurationError
+from .progress import (
+    ProgressBar,
+    progress_bar,
+    track,
+    track_range,
+    MultiProgress,
+    Spinner,
+    format_duration,
+    format_bytes,
+)
 
 __version__ = "0.2.0"
 
@@ -69,4 +79,7 @@ __all__ = [
     "setup_logging", "get_logger", "LogContext", "JSONFormatter", "ColoredFormatter",
     # Validation
     "InputValidator", "ValidationConfigurationError",
+    # Progress
+    "ProgressBar", "progress_bar", "track", "track_range", "MultiProgress", "Spinner",
+    "format_duration", "format_bytes",
 ]
