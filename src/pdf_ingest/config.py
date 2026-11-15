@@ -56,5 +56,10 @@ class Settings(BaseSettings):
     output_dir: Path = Path("output")
     export_formats: list[str] = ["json", "markdown", "txt"]
 
+    # Logging
+    log_level: str = "INFO"
+    json_logs: bool = False
+    log_file: Path | None = None
+
 
 settings = Settings()

@@ -21,6 +21,7 @@ from .specialize import (
     ContractExtractor, Contract,
     StudyExtractor, StudyGuide,
 )
+from .logging import setup_logging, get_logger, LogContext, JSONFormatter, ColoredFormatter
 
 __version__ = "0.2.0"
 
@@ -48,4 +49,6 @@ __all__ = [
     "StudyExtractor", "StudyGuide",
     # Config
     "settings",
+    # Logging
+    "setup_logging", "get_logger", "LogContext", "JSONFormatter", "ColoredFormatter",
 ]
