@@ -1,15 +1,17 @@
 """RAG chat pipeline: retrieve -> prompt -> stream answer with citations."""
 from __future__ import annotations
 
+import asyncio
 import json
+import httpx
 import requests
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
+from typing import AsyncGenerator, Generator
 
 from .config import settings
-from .search import SearchResult, search
-from .embed import embed_query
+from .search import SearchResult, search, search_async
+from .embed import embed_query, embed_query_async
 from .store import load_vector_store
 
 
@@ -94,6 +96,52 @@ class RAGChat:
         else:
             return response.json().get("response", "")
 
+    async def _call_ollama_async(
+        self,
+        prompt: str,
+        stream: bool = True,
+        client: httpx.AsyncClient | None = None,
+    ) -> AsyncGenerator[str, None] | str:
+        """Async version of _call_ollama."""
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": stream,
+            "options": {
+                "temperature": self.temperature,
+                "num_predict": self.max_tokens,
+            },
+        }
+
+        if client is None:
+            async with httpx.AsyncClient(timeout=300.0) as new_client:
+                return await self._call_ollama_async(prompt, stream, new_client)
+
+        try:
+            if stream:
+                async with client.stream("POST", f"{self.base_url}/api/generate", json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            try:
+                                data = json.loads(line)
+                                if "response" in data:
+                                    yield data["response"]
+                                if data.get("done"):
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+            else:
+                response = await client.post(f"{self.base_url}/api/generate", json=payload)
+                response.raise_for_status()
+                return response.json().get("response", "")
+        except httpx.ConnectError as exc:
+            raise RuntimeError(f"Could not reach Ollama at {self.base_url}. Is it running?") from exc
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise RuntimeError(f"Model '{self.model}' not found. Run: ollama pull {self.model}") from exc
+            raise
+
     def chat(self, query: str, top_k: int | None = None) -> ChatResponse:
         results = search(query, self.store_path, self.dimension, top_k=top_k)
         context = self._build_context(results)
@@ -101,6 +149,26 @@ class RAGChat:
 
         content_parts = []
         for chunk in self._call_ollama(prompt, stream=True):
+            content_parts.append(chunk)
+
+        content = "".join(content_parts)
+        self.history.append(ChatMessage(role="user", content=query))
+        self.history.append(ChatMessage(role="assistant", content=content))
+
+        return ChatResponse(
+            content=content,
+            sources=results,
+            model=self.model,
+        )
+
+    async def chat_async(self, query: str, top_k: int | None = None) -> ChatResponse:
+        """Async version of chat."""
+        results = await search_async(query, self.store_path, self.dimension, top_k=top_k)
+        context = self._build_context(results)
+        prompt = self._build_prompt(query, context)
+
+        content_parts = []
+        async for chunk in self._call_ollama_async(prompt, stream=True):
             content_parts.append(chunk)
 
         content = "".join(content_parts)
@@ -124,6 +192,22 @@ class RAGChat:
         self.history.append(ChatMessage(role="user", content=query))
         self.history.append(ChatMessage(role="assistant", content="".join([])))
         return results
+
+    async def chat_stream_async(
+        self,
+        query: str,
+        top_k: int | None = None,
+    ) -> AsyncGenerator[str, None]:
+        """Async streaming chat."""
+        results = await search_async(query, self.store_path, self.dimension, top_k=top_k)
+        context = self._build_context(results)
+        prompt = self._build_prompt(query, context)
+
+        async for chunk in self._call_ollama_async(prompt, stream=True):
+            yield chunk
+
+        self.history.append(ChatMessage(role="user", content=query))
+        # Note: we don't have the full content here in streaming mode
 
     def clear_history(self) -> None:
         self.history.clear()
