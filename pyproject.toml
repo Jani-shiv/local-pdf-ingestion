@@ -36,6 +36,8 @@ dependencies = [
     "python-pptx>=0.6",
     "pillow>=10.0",
     "pytesseract>=0.3",
+    "rank-bm25>=0.2",
+    "tenacity>=8.2",
 ]
 
 [project.optional-dependencies]
