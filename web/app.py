@@ -2,6 +2,7 @@
 import streamlit as st
 import json
 import tempfile
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -9,6 +10,7 @@ from pdf_ingest import (
     IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base,
     settings, Recipe, Invoice, MedicalReport, Contract, StudyGuide,
 )
+from pdf_ingest.validation import ConfigurationError
 
 st.set_page_config(
     page_title="pdf-ingest: Local RAG",
@@ -27,18 +29,36 @@ st.markdown("""
 .user-message { background: #e3f2fd; margin-left: 20%; }
 .assistant-message { background: #f5f5f5; margin-right: 20%; }
 .source-citation { font-size: 0.85em; color: #666; font-style: italic; }
+.error-box { background: #ffebee; border: 1px solid #ef5350; border-radius: 4px; padding: 12px; margin: 8px 0; }
+.success-box { background: #e8f5e9; border: 1px solid #66bb6a; border-radius: 4px; padding: 12px; margin: 8px 0; }
+.info-box { background: #e3f2fd; border: 1px solid #42a5f5; border-radius: 4px; padding: 12px; margin: 8px 0; }
 </style>
 """, unsafe_allow_html=True)
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading pipeline...")
 def get_pipeline(vector_store_path: str):
     return create_pipeline(vector_store_path=vector_store_path)
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading knowledge base...")
 def get_kb(vector_store_path: str):
     return create_knowledge_base(vector_store_path)
+
+
+def handle_error(error: Exception, context: str = "") -> None:
+    """Display error with context."""
+    if isinstance(error, ConfigurationError):
+        st.error(f"⚠️ Configuration Error: {error}")
+    elif isinstance(error, FileNotFoundError):
+        st.error(f"📁 File Not Found: {error}")
+    elif isinstance(error, ConnectionError):
+        st.error(f"🔌 Connection Error: Could not connect to Ollama. Is it running?")
+    else:
+        st.error(f"❌ Error{f' in {context}' if context else ''}: {error}")
+        if st.session_state.get("show_debug", False):
+            with st.expander("🔍 Debug Info"):
+                st.code(traceback.format_exc())
 
 
 def sidebar():
@@ -69,9 +89,28 @@ def sidebar():
         settings.max_tokens = st.number_input("Max Tokens", 100, 8192, settings.max_tokens)
 
         st.divider()
-        if st.button("🔄 Clear Cache & Reload"):
-            st.cache_resource.clear()
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Clear Cache & Reload"):
+                st.cache_resource.clear()
+                st.rerun()
+        with col2:
+            st.session_state.show_debug = st.checkbox("Debug Mode", value=st.session_state.get("show_debug", False))
+
+        # Health check
+        st.divider()
+        st.subheader("🏥 System Status")
+        try:
+            import httpx
+            import asyncio
+            async def check_ollama():
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    resp = await client.get(f"{settings.ollama_url}/api/tags")
+                    return resp.status_code == 200
+            ollama_ok = asyncio.run(check_ollama())
+            st.markdown(f"{'✅' if ollama_ok else '❌'} Ollama: {'Connected' if ollama_ok else 'Disconnected'}")
+        except Exception:
+            st.markdown("❌ Ollama: Connection failed")
 
         return vector_store
 
@@ -92,39 +131,65 @@ def page_ingest(vector_store: str):
         )
         use_ocr = st.checkbox("Use OCR for PDFs (scanned documents)", value=False)
         if st.button("Ingest Files", type="primary") and uploaded:
-            with st.spinner("Ingesting..."):
-                results = []
-                for file in uploaded:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.name.split('.')[-1]}") as tmp:
-                        tmp.write(file.read())
-                        tmp_path = Path(tmp.name)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            results = []
+            errors = []
 
-                    try:
-                        suffix = tmp_path.suffix.lower()
-                        if suffix == ".pdf":
-                            results.append(pipeline.ingest_pdf(tmp_path, use_ocr=use_ocr))
-                        elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
-                            results.append(pipeline.ingest_audio(tmp_path))
-                        elif suffix in (".docx", ".xlsx", ".pptx"):
-                            results.append(pipeline.ingest_office(tmp_path))
-                        else:
-                            st.warning(f"Unsupported: {file.name}")
-                    finally:
-                        tmp_path.unlink(missing_ok=True)
+            for i, file in enumerate(uploaded):
+                status_text.text(f"Processing {file.name}...")
+                progress_bar.progress((i + 1) / len(uploaded))
 
-                st.success(f"Ingested {len(results)} file(s)!")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.name.split('.')[-1]}") as tmp:
+                    tmp.write(file.read())
+                    tmp_path = Path(tmp.name)
+
+                try:
+                    suffix = tmp_path.suffix.lower()
+                    if suffix == ".pdf":
+                        results.append(pipeline.ingest_pdf(tmp_path, use_ocr=use_ocr))
+                    elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
+                        results.append(pipeline.ingest_audio(tmp_path))
+                    elif suffix in (".docx", ".xlsx", ".pptx"):
+                        results.append(pipeline.ingest_office(tmp_path))
+                    else:
+                        errors.append(f"Unsupported: {file.name}")
+                except Exception as e:
+                    errors.append(f"{file.name}: {e}")
+                finally:
+                    tmp_path.unlink(missing_ok=True)
+
+            status_text.text("Done!")
+            progress_bar.empty()
+
+            if results:
+                st.success(f"✅ Ingested {len(results)} file(s)!")
                 for r in results:
                     st.write(f"✅ **{r.source}**: {r.metadata.get('chunks', 0)} chunks")
+
+            if errors:
+                for err in errors:
+                    st.error(f"❌ {err}")
 
     with tab2:
         urls = st.text_area("URLs (one per line)", height=150, placeholder="https://example.com/article\nhttps://blog.example.com/post")
         if st.button("Ingest URLs", type="primary") and urls.strip():
             url_list = [u.strip() for u in urls.split("\n") if u.strip()]
-            with st.spinner("Fetching and ingesting..."):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            try:
+                status_text.text("Fetching and ingesting...")
                 results = pipeline.ingest_web(url_list)
-                st.success(f"Ingested {len(results)} URL(s)!")
+                progress_bar.progress(1.0)
+                st.success(f"✅ Ingested {len(results)} URL(s)!")
                 for r in results:
                     st.write(f"✅ **{r.metadata.get('title', r.source)}**: {r.metadata.get('chunks', 0)} chunks")
+            except Exception as e:
+                handle_error(e, "ingesting URLs")
+            finally:
+                progress_bar.empty()
+                status_text.empty()
 
     with tab3:
         audio_files = st.file_uploader(
@@ -133,26 +198,39 @@ def page_ingest(vector_store: str):
             accept_multiple_files=True,
         )
         if st.button("Transcribe & Ingest", type="primary") and audio_files:
-            with st.spinner("Transcribing and ingesting..."):
-                for file in audio_files:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.name.split('.')[-1]}") as tmp:
-                        tmp.write(file.read())
-                        tmp_path = Path(tmp.name)
-                    try:
-                        result = pipeline.ingest_audio(tmp_path)
-                        st.success(f"✅ **{result.source}**: {result.metadata.get('chunks', 0)} chunks")
-                    finally:
-                        tmp_path.unlink(missing_ok=True)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for i, file in enumerate(audio_files):
+                status_text.text(f"Transcribing {file.name}...")
+                progress_bar.progress((i + 1) / len(audio_files))
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.name.split('.')[-1]}") as tmp:
+                    tmp.write(file.read())
+                    tmp_path = Path(tmp.name)
+                try:
+                    result = pipeline.ingest_audio(tmp_path)
+                    st.success(f"✅ **{result.source}**: {result.metadata.get('chunks', 0)} chunks")
+                except Exception as e:
+                    handle_error(e, f"transcribing {file.name}")
+                finally:
+                    tmp_path.unlink(missing_ok=True)
+            
+            progress_bar.empty()
+            status_text.empty()
 
     with tab4:
         dir_path = st.text_input("Directory path", placeholder="/path/to/documents")
         recursive = st.checkbox("Recursive", value=True)
         if st.button("Ingest Directory", type="primary") and dir_path:
-            with st.spinner("Scanning and ingesting..."):
-                results = pipeline.ingest_directory(dir_path, recursive=recursive)
-                st.success(f"Ingested {len(results)} file(s)!")
+            try:
+                with st.spinner("Scanning and ingesting..."):
+                    results = pipeline.ingest_directory(dir_path, recursive=recursive)
+                st.success(f"✅ Ingested {len(results)} file(s)!")
                 for r in results:
                     st.write(f"✅ **{r.source}**: {r.metadata.get('chunks', 0)} chunks")
+            except Exception as e:
+                handle_error(e, "ingesting directory")
 
 
 def page_chat(vector_store: str):
@@ -160,6 +238,19 @@ def page_chat(vector_store: str):
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+
+    # Model selector in chat
+    col1, col2, col3 = st.columns([3, 1, 1])
+    with col1:
+        model = st.selectbox("Model", ["llama3.1:8b", "phi3:mini", "mistral:7b", "gemma2:9b"], 
+                            index=["llama3.1:8b", "phi3:mini", "mistral:7b", "gemma2:9b"].index(settings.llm_model) if settings.llm_model in ["llama3.1:8b", "phi3:mini", "mistral:7b", "gemma2:9b"] else 0)
+        settings.llm_model = model
+    with col2:
+        if st.button("🔄 New Chat"):
+            st.session_state.messages = []
+            st.rerun()
+    with col3:
+        streaming = st.checkbox("Stream", value=True)
 
     kb = get_kb(vector_store)
     kb.initialize_chat(model=settings.llm_model)
@@ -181,29 +272,56 @@ def page_chat(vector_store: str):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = kb.ask(prompt, top_k=settings.top_k)
-
-            st.markdown(response.content)
-
-            if response.sources:
-                with st.expander(f"📚 Sources ({len(response.sources)})"):
-                    for s in response.sources:
-                        st.markdown(f"**[{s.id}]** Page {s.page} • Score: {s.score:.3f}")
-                        st.text(s.text[:300] + "...")
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": response.content,
-                "sources": [
-                    {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
-                    for s in response.sources
-                ],
-            })
-
-    if st.button("🗑️ Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
+            try:
+                if streaming:
+                    # Streaming response
+                    response_placeholder = st.empty()
+                    full_content = ""
+                    for chunk in kb.ask_stream(prompt, top_k=settings.top_k):
+                        full_content += chunk
+                        response_placeholder.markdown(full_content + "▌")
+                    
+                    # Get sources after streaming
+                    response = kb.ask(prompt, top_k=settings.top_k)
+                    response_placeholder.markdown(full_content)
+                    
+                    if response.sources:
+                        with st.expander(f"📚 Sources ({len(response.sources)})"):
+                            for s in response.sources:
+                                st.markdown(f"**[{s.id}]** Page {s.page} • Score: {s.score:.3f}")
+                                st.text(s.text[:300] + "...")
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": full_content,
+                        "sources": [
+                            {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
+                            for s in response.sources
+                        ],
+                    })
+                else:
+                    # Non-streaming response
+                    with st.spinner("Thinking..."):
+                        response = kb.ask(prompt, top_k=settings.top_k)
+                    
+                    st.markdown(response.content)
+                    
+                    if response.sources:
+                        with st.expander(f"📚 Sources ({len(response.sources)})"):
+                            for s in response.sources:
+                                st.markdown(f"**[{s.id}]** Page {s.page} • Score: {s.score:.3f}")
+                                st.text(s.text[:300] + "...")
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": response.content,
+                        "sources": [
+                            {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
+                            for s in response.sources
+                        ],
+                    })
+            except Exception as e:
+                handle_error(e, "chat")
 
 
 def page_search(vector_store: str):
@@ -212,22 +330,28 @@ def page_search(vector_store: str):
     kb = get_kb(vector_store)
 
     query = st.text_input("Search query", placeholder="Enter your search...")
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
         top_k = st.slider("Results", 1, 20, settings.top_k)
     with col2:
         threshold = st.slider("Min Score", 0.0, 1.0, settings.similarity_threshold, 0.05)
+    with col3:
+        use_hybrid = st.checkbox("Hybrid", value=settings.use_hybrid_search)
 
     if st.button("Search", type="primary") and query:
-        from pdf_ingest import search
-        results = search(query, vector_store, kb.store.dimension, top_k, threshold)
+        try:
+            from pdf_ingest import search
+            with st.spinner("Searching..."):
+                results = search(query, vector_store, kb.store.dimension, top_k, threshold)
 
-        st.write(f"Found **{len(results)}** results")
-        for r in results:
-            with st.container():
-                st.markdown(f"**[{r.id}]** Page {r.page} • Score: `{r.score:.3f}` • Source: `{r.source}`")
-                st.text(r.text[:500] + ("..." if len(r.text) > 500 else ""))
-                st.divider()
+            st.write(f"Found **{len(results)}** results")
+            for r in results:
+                with st.container():
+                    st.markdown(f"**[{r.id}]** Page {r.page} • Score: `{r.score:.3f}` • Source: `{r.source}`")
+                    st.text(r.text[:500] + ("..." if len(r.text) > 500 else ""))
+                    st.divider()
+        except Exception as e:
+            handle_error(e, "search")
 
 
 def page_summarize(vector_store: str):
@@ -246,14 +370,17 @@ def page_summarize(vector_store: str):
             style = st.selectbox("Style", ["concise", "detailed", "bullet"])
 
         if st.button("Generate Summary", type="primary"):
-            with st.spinner("Summarizing..."):
-                summary = kb.summarize_all(max_length=max_len, style=style)
+            try:
+                with st.spinner("Summarizing..."):
+                    summary = kb.summarize_all(max_length=max_len, style=style)
                 st.markdown("### Summary")
                 st.write(summary.text)
                 if summary.key_points:
                     st.markdown("### Key Points")
                     for kp in summary.key_points:
                         st.markdown(f"- {kp}")
+            except Exception as e:
+                handle_error(e, "summarization")
 
     with tab2:
         st.subheader("Generate Study Materials")
@@ -261,8 +388,9 @@ def page_summarize(vector_store: str):
         anki = st.checkbox("Export as Anki CSV", value=False)
 
         if st.button("Generate", type="primary"):
-            with st.spinner("Creating study guide..."):
-                result = kb.generate_study_guide(fmt)
+            try:
+                with st.spinner("Creating study guide..."):
+                    result = kb.generate_study_guide(fmt)
                 if fmt == "flashcards" and anki:
                     from pdf_ingest.specialize import StudyGuide
                     guide = StudyGuide(**result)
@@ -270,6 +398,8 @@ def page_summarize(vector_store: str):
                     st.download_button("Download Anki CSV", csv_data, "study_cards.csv", "text/csv")
                 else:
                     st.json(result)
+            except Exception as e:
+                handle_error(e, "study guide generation")
 
     with tab3:
         st.subheader("Extract Structured Data")
@@ -277,8 +407,9 @@ def page_summarize(vector_store: str):
         out_fmt = st.selectbox("Output Format", ["json", "markdown"])
 
         if st.button("Extract", type="primary"):
-            with st.spinner(f"Extracting {extract_type}..."):
-                items = getattr(kb, f"extract_{extract_type}")()
+            try:
+                with st.spinner(f"Extracting {extract_type}..."):
+                    items = getattr(kb, f"extract_{extract_type}")()
 
                 if out_fmt == "json":
                     st.json([item.to_dict() for item in items])
@@ -286,6 +417,8 @@ def page_summarize(vector_store: str):
                     for item in items:
                         st.markdown(item.to_markdown())
                         st.divider()
+            except Exception as e:
+                handle_error(e, "extraction")
 
 
 def page_manage(vector_store: str):
@@ -308,35 +441,53 @@ def page_manage(vector_store: str):
 
     with col1:
         if st.button("Export as JSON"):
-            from pdf_ingest.store import load_vector_store
-            store = load_vector_store(vector_store, kb.store.dimension)
-            all_results = store.search(np.zeros(kb.store.dimension), store.count)
-            data = {
-                "meta": {"chunks": len(all_results), "dimension": kb.store.dimension},
-                "chunks": [{"id": m["id"], "text": m["text"], "page": m["page"], "chunk": m["chunk"]} for _, m in all_results],
-            }
-            st.download_button("Download JSON", json.dumps(data, indent=2), "knowledge_base.json", "application/json")
+            try:
+                from pdf_ingest.store import load_vector_store
+                import numpy as np
+                store = load_vector_store(vector_store, kb.store.dimension)
+                all_results = store.search(np.zeros(kb.store.dimension), store.count)
+                data = {
+                    "meta": {"chunks": len(all_results), "dimension": kb.store.dimension},
+                    "chunks": [{"id": m["id"], "text": m["text"], "page": m["page"], "chunk": m["chunk"]} for _, m in all_results],
+                }
+                st.download_button("Download JSON", json.dumps(data, indent=2), "knowledge_base.json", "application/json")
+            except Exception as e:
+                handle_error(e, "JSON export")
 
     with col2:
         if st.button("Export as Markdown"):
-            store = load_vector_store(vector_store, kb.store.dimension)
-            all_results = store.search(np.zeros(kb.store.dimension), store.count)
-            md = "# Knowledge Base Export\n\n"
-            for _, m in all_results:
-                md += f"## [{m['id']}] Page {m['page']}\n{m['text']}\n\n---\n\n"
-            st.download_button("Download Markdown", md, "knowledge_base.md", "text/markdown")
+            try:
+                from pdf_ingest.store import load_vector_store
+                import numpy as np
+                store = load_vector_store(vector_store, kb.store.dimension)
+                all_results = store.search(np.zeros(kb.store.dimension), store.count)
+                md = "# Knowledge Base Export\n\n"
+                for _, m in all_results:
+                    md += f"## [{m['id']}] Page {m['page']}\n{m['text']}\n\n---\n\n"
+                st.download_button("Download Markdown", md, "knowledge_base.md", "text/markdown")
+            except Exception as e:
+                handle_error(e, "Markdown export")
 
     st.divider()
     st.subheader("Danger Zone")
     if st.button("🗑️ Delete Knowledge Base", type="secondary"):
         if st.checkbox("I understand this cannot be undone"):
-            import shutil
-            shutil.rmtree(vector_store, ignore_errors=True)
-            st.success("Knowledge base deleted. Refresh to recreate.")
-            st.cache_resource.clear()
+            try:
+                import shutil
+                shutil.rmtree(vector_store, ignore_errors=True)
+                st.success("Knowledge base deleted. Refresh to recreate.")
+                st.cache_resource.clear()
+            except Exception as e:
+                handle_error(e, "deleting knowledge base")
 
 
 def main():
+    # Initialize session state
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "show_debug" not in st.session_state:
+        st.session_state.show_debug = False
+
     vector_store = sidebar()
 
     pages = {
