@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .chunk import Chunk, chunk_pages, split_text
-from .config import settings
+from .config import settings, ConfigurationError
 from .embed import embed_texts, embed_query, EmbeddingError
 from .extract import extract_pages, Page
 from .extract_audio import extract_audio_text, extract_audio_segments, AudioSegment
@@ -48,7 +48,7 @@ __all__ = [
     "ContractExtractor", "Contract",
     "StudyExtractor", "StudyGuide",
     # Config
-    "settings",
+    "settings", "ConfigurationError",
     # Logging
     "setup_logging", "get_logger", "LogContext", "JSONFormatter", "ColoredFormatter",
 ]
