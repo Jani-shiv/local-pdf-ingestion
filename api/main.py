@@ -1,13 +1,17 @@
 """FastAPI backend for pdf-ingest."""
 from __future__ import annotations
 
+import time
 import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.websockets import WebSocketState
 
 from pdf_ingest import (
     IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base,
@@ -27,6 +31,62 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting storage (in production, use Redis)
+_rate_limit_store: dict[str, list[float]] = {}
+
+# Request logging middleware
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Log request
+        print(f"[REQUEST] {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}")
+        
+        response = await call_next(request)
+        
+        # Log response
+        process_time = time.time() - start_time
+        print(f"[RESPONSE] {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
+        
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+
+
+# Rate limiting middleware
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, requests_per_minute: int = 60):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host if request.client else "unknown"
+        current_time = time.time()
+        
+        # Clean old entries
+        if client_ip in _rate_limit_store:
+            _rate_limit_store[client_ip] = [
+                t for t in _rate_limit_store[client_ip]
+                if current_time - t < 60
+            ]
+        else:
+            _rate_limit_store[client_ip] = []
+        
+        # Check rate limit
+        if len(_rate_limit_store[client_ip]) >= self.requests_per_minute:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Please try again later."},
+                headers={"Retry-After": "60"}
+            )
+        
+        _rate_limit_store[client_ip].append(current_time)
+        response = await call_next(request)
+        return response
+
+
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
 
 # Global instances
 pipeline: Optional[IngestionPipeline] = None
@@ -97,15 +157,51 @@ class ExtractRequest(BaseModel):
     format: str = Field(default="json", pattern="^(json|markdown)$")
 
 
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    ollama_connected: bool
+    vector_store_ready: bool
+    total_chunks: int
+
+
 @app.on_event("startup")
 async def startup():
     get_pipeline()
     get_kb()
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 async def health():
-    return {"status": "ok", "version": "0.2.0"}
+    """Health check endpoint with detailed status."""
+    ollama_connected = False
+    vector_store_ready = False
+    total_chunks = 0
+    
+    # Check Ollama connection
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{settings.ollama_url}/api/tags")
+            ollama_connected = response.status_code == 200
+    except Exception:
+        pass
+    
+    # Check vector store
+    try:
+        kb_instance = get_kb()
+        vector_store_ready = True
+        total_chunks = kb_instance.store.count
+    except Exception:
+        pass
+    
+    return HealthResponse(
+        status="healthy" if ollama_connected and vector_store_ready else "degraded",
+        version="0.2.0",
+        ollama_connected=ollama_connected,
+        vector_store_ready=vector_store_ready,
+        total_chunks=total_chunks,
+    )
 
 
 @app.get("/config")
@@ -177,11 +273,9 @@ async def chat(request: ChatRequest):
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
-    from fastapi.responses import StreamingResponse
     kb = get_kb()
 
     async def generate():
-        sources = None
         for chunk in kb.ask_stream(request.query, top_k=request.top_k):
             yield f"data: {chunk}\n\n"
 
@@ -243,6 +337,46 @@ async def delete_kb():
     pipeline = None
     kb = None
     return {"status": "deleted"}
+
+
+# WebSocket endpoint for real-time chat
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    await websocket.accept()
+    kb = get_kb()
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            query = data.get("query", "")
+            top_k = data.get("top_k", 5)
+            
+            if not query:
+                await websocket.send_json({"error": "Query is required"})
+                continue
+            
+            # Send initial response
+            await websocket.send_json({"type": "start", "query": query})
+            
+            # Stream response
+            full_content = ""
+            for chunk in kb.ask_stream(query, top_k=top_k):
+                full_content += chunk
+                await websocket.send_json({"type": "chunk", "content": chunk})
+            
+            # Get sources
+            results = kb.ask(query, top_k=top_k)
+            sources = [
+                {"id": s.id, "text": s.text[:200], "page": s.page, "score": s.score, "source": s.source}
+                for s in results.sources
+            ]
+            
+            await websocket.send_json({"type": "end", "sources": sources, "full_content": full_content})
+            
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
 
 
 if __name__ == "__main__":
