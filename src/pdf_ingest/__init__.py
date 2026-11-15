@@ -15,7 +15,16 @@ from .extract_audio import extract_audio_text, extract_audio_segments, AudioSegm
 from .extract_web import extract_web_content, extract_web_multiple, WebContent
 from .extract_ocr import extract_pdf_ocr, extract_image_ocr, OCRResult
 from .extract_office import extract_office, OfficeContent
-from .store import save_dataset, load_dataset, save_vector_store, load_vector_store, VectorStore
+from .store import (
+    save_dataset,
+    load_dataset,
+    save_vector_store,
+    load_vector_store,
+    VectorStore,
+    FAISSStore,
+    ChromaStore,
+    get_vector_store,
+)
 from .search import search, search_async, SearchResult, HybridSearcher
 from .chat import RAGChat, ChatResponse, create_chat
 from .summarize import create_summarizer, Summarizer, Summary
@@ -37,7 +46,7 @@ __all__ = [
     "Chunk", "chunk_pages", "split_text",
     "embed_texts", "embed_query", "embed_texts_async", "embed_query_async", "EmbeddingError",
     "save_dataset", "load_dataset",
-    "save_vector_store", "load_vector_store", "VectorStore",
+    "save_vector_store", "load_vector_store", "VectorStore", "FAISSStore", "ChromaStore", "get_vector_store",
     "search", "search_async", "SearchResult", "HybridSearcher",
     "RAGChat", "ChatResponse", "create_chat",
     "create_summarizer", "Summarizer", "Summary",
