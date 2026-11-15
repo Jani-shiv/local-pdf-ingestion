@@ -28,7 +28,14 @@ from .store import (
 from .search import search, search_async, SearchResult, HybridSearcher
 from .chat import RAGChat, ChatResponse, create_chat
 from .summarize import create_summarizer, Summarizer, Summary
-from .pipeline import IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base, IngestionResult
+from .pipeline import (
+    IngestionPipeline,
+    KnowledgeBase,
+    create_pipeline,
+    create_knowledge_base,
+    IngestionResult,
+    BatchIngestionResult,
+)
 from .specialize import (
     RecipeExtractor, Recipe,
     InvoiceExtractor, Invoice,
@@ -61,7 +68,7 @@ __all__ = [
     "search", "search_async", "SearchResult", "HybridSearcher",
     "RAGChat", "ChatResponse", "create_chat",
     "create_summarizer", "Summarizer", "Summary",
-    "IngestionPipeline", "KnowledgeBase", "create_pipeline", "create_knowledge_base", "IngestionResult",
+    "IngestionPipeline", "KnowledgeBase", "create_pipeline", "create_knowledge_base", "IngestionResult", "BatchIngestionResult",
     # Multi-source
     "extract_audio_text", "extract_audio_segments", "AudioSegment",
     "extract_web_content", "extract_web_multiple", "WebContent",

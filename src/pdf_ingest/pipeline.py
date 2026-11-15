@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Callable
 
 import numpy as np
 from tqdm import tqdm
@@ -27,6 +27,7 @@ from .specialize import (
     ContractExtractor, Contract,
     StudyExtractor, StudyGuide,
 )
+from .progress import progress_bar
 
 
 @dataclass
@@ -36,6 +37,16 @@ class IngestionResult:
     vectors: np.ndarray
     vector_store_path: Path
     metadata: dict
+
+
+@dataclass
+class BatchIngestionResult:
+    """Result of batch ingestion operation."""
+    total_files: int
+    successful: int
+    failed: int
+    results: list[IngestionResult]
+    errors: list[dict]
 
 
 class IngestionPipeline:
@@ -132,14 +143,31 @@ class IngestionPipeline:
             metadata={"source": str(file_path), "chunks": len(all_chunks)},
         )
 
-    def ingest_directory(self, dir_path: str | Path, recursive: bool = True) -> list[IngestionResult]:
+    def ingest_directory(
+        self,
+        dir_path: str | Path,
+        recursive: bool = True,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> list[IngestionResult]:
+        """Ingest all supported files in a directory with optional progress callback."""
         dir_path = Path(dir_path)
         results = []
         pattern = "**/*" if recursive else "*"
 
-        for file_path in dir_path.glob(pattern):
-            if not file_path.is_file():
-                continue
+        # Collect all supported files first
+        supported_extensions = {
+            ".pdf", ".mp3", ".wav", ".m4a", ".flac", ".ogg",
+            ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp",
+        }
+        files = [
+            f for f in dir_path.glob(pattern)
+            if f.is_file() and f.suffix.lower() in supported_extensions
+        ]
+
+        for i, file_path in enumerate(files):
+            if progress_callback:
+                progress_callback(file_path.name, i + 1, len(files))
+
             suffix = file_path.suffix.lower()
             try:
                 if suffix == ".pdf":
@@ -155,6 +183,67 @@ class IngestionPipeline:
                 print(f"Failed to ingest {file_path}: {e}")
 
         return results
+
+    def ingest_batch(
+        self,
+        file_paths: list[str | Path],
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> BatchIngestionResult:
+        """Ingest multiple files with progress tracking."""
+        results: list[IngestionResult] = []
+        errors: list[dict] = []
+        successful = 0
+        failed = 0
+
+        for i, file_path in enumerate(file_paths):
+            file_path = Path(file_path)
+            if progress_callback:
+                progress_callback(file_path.name, i + 1, len(file_paths))
+
+            suffix = file_path.suffix.lower()
+            try:
+                if suffix == ".pdf":
+                    results.append(self.ingest_pdf(file_path))
+                    successful += 1
+                elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
+                    results.append(self.ingest_audio(file_path))
+                    successful += 1
+                elif suffix in (".docx", ".xlsx", ".pptx"):
+                    results.append(self.ingest_office(file_path))
+                    successful += 1
+                elif suffix in (".png", ".jpg", ".jpeg", ".tiff", ".bmp"):
+                    errors.append({"file": str(file_path), "error": "Image OCR not yet supported"})
+                    failed += 1
+                else:
+                    errors.append({"file": str(file_path), "error": f"Unsupported file type: {suffix}"})
+                    failed += 1
+            except Exception as e:
+                errors.append({"file": str(file_path), "error": str(e)})
+                failed += 1
+
+        return BatchIngestionResult(
+            total_files=len(file_paths),
+            successful=successful,
+            failed=failed,
+            results=results,
+            errors=errors,
+        )
+
+    def ingest_batch_with_progress(
+        self,
+        file_paths: list[str | Path],
+        desc: str = "Batch ingesting",
+    ) -> BatchIngestionResult:
+        """Ingest multiple files with a progress bar."""
+        def update_progress(name: str, current: int, total: int) -> None:
+            pass  # Progress bar handles this
+
+        with progress_bar(total=len(file_paths), desc=desc, unit="file") as pbar:
+            def callback(name: str, current: int, total: int) -> None:
+                pbar.set_description(f"{desc} {name}")
+                pbar.update(0)  # Just update description
+
+            return self.ingest_batch(file_paths, progress_callback=callback)
 
 
 class KnowledgeBase:
