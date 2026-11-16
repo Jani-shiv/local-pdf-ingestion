@@ -156,7 +156,7 @@ jobs:
 
       - name: Test API container
         run: |
-          docker run --rm -d --name test-api -p 8000:8000 pdf-ingest-api:latest
+          docker run -d --name test-api -p 8000:8000 pdf-ingest-api:latest
           for i in {1..30}; do
             if curl -f http://localhost:8000/health; then
               echo "API is ready"
@@ -168,6 +168,7 @@ jobs:
           done
           curl -f http://localhost:8000/health || (docker logs test-api && exit 1)
           docker stop test-api
+          docker rm -f test-api
 
   release:
     name: Create Release
