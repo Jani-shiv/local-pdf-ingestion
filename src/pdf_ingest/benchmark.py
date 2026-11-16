@@ -88,12 +88,12 @@ def benchmark_chunking(text: str, iterations: int = 100) -> list[BenchmarkResult
     results = []
 
     for strategy in strategies:
-        def chunk_func():
+        def chunk_func(s=strategy):
             return chunk_pages(
                 [{"page": 1, "text": text}],
                 chunk_size=1000,
                 overlap=150,
-                strategy=strategy,
+                strategy=s,
             )
 
         result = _time_it(chunk_func, iterations=iterations)
@@ -186,8 +186,8 @@ def benchmark_chat(
     chat = RAGChat(vector_store_path, dimension)
 
     for query in queries:
-        def chat_func():
-            return chat.chat(query, top_k=5)
+        def chat_func(q=query):
+            return chat.chat(q, top_k=5)
 
         result = _time_it(chat_func, iterations=iterations)
         result.metadata["query"] = query[:50]

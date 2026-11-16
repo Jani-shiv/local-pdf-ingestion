@@ -303,29 +303,29 @@ class IngestionPipeline:
         failed = 0
 
         for i, file_path in enumerate(file_paths):
-            file_path = Path(file_path)
+            fp = Path(file_path)
             if progress_callback:
-                progress_callback(file_path.name, i + 1, len(file_paths))
+                progress_callback(fp.name, i + 1, len(file_paths))
 
-            suffix = file_path.suffix.lower()
+            suffix = fp.suffix.lower()
             try:
                 if suffix == ".pdf":
-                    results.append(self.ingest_pdf(file_path))
+                    results.append(self.ingest_pdf(fp))
                     successful += 1
                 elif suffix in (".mp3", ".wav", ".m4a", ".flac", ".ogg"):
-                    results.append(self.ingest_audio(file_path))
+                    results.append(self.ingest_audio(fp))
                     successful += 1
                 elif suffix in (".docx", ".xlsx", ".pptx"):
-                    results.append(self.ingest_office(file_path))
+                    results.append(self.ingest_office(fp))
                     successful += 1
                 elif suffix in (".png", ".jpg", ".jpeg", ".tiff", ".bmp"):
-                    errors.append({"file": str(file_path), "error": "Image OCR not yet supported"})
+                    errors.append({"file": str(fp), "error": "Image OCR not yet supported"})
                     failed += 1
                 else:
-                    errors.append({"file": str(file_path), "error": f"Unsupported file type: {suffix}"})
+                    errors.append({"file": str(fp), "error": f"Unsupported file type: {suffix}"})
                     failed += 1
             except Exception as e:
-                errors.append({"file": str(file_path), "error": str(e)})
+                errors.append({"file": str(fp), "error": str(e)})
                 failed += 1
 
         return BatchIngestionResult(

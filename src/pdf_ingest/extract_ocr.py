@@ -49,8 +49,8 @@ class OCRExtractor:
             # Verify tesseract is available
             try:
                 pytesseract.get_tesseract_version()
-            except Exception:
-                raise RuntimeError("Tesseract not found. Install: https://github.com/tesseract-ocr/tesseract")
+            except Exception as exc:
+                raise RuntimeError("Tesseract not found. Install: https://github.com/tesseract-ocr/tesseract") from exc
 
     def extract_pdf(self, pdf_path: str | Path) -> Generator[OCRResult, None, None]:
         import pymupdf

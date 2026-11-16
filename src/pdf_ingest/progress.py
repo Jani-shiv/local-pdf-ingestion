@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import sys
 import threading
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, TypeVar
+from contextlib import contextmanager, suppress
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from tqdm import tqdm
 from tqdm.auto import trange
@@ -164,10 +164,8 @@ def track(
         Items from the iterable
     """
     if total is None:
-        try:
+        with suppress(TypeError, AttributeError):
             total = len(iterable)  # type: ignore[arg-type]
-        except (TypeError, AttributeError):
-            pass
 
     with tqdm(
         iterable,
@@ -302,7 +300,7 @@ class Spinner:
             do_work()
     """
 
-    SPINNERS = {
+    SPINNERS: ClassVar[dict[str, list[str]]] = {
         "dots": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
         "line": ["|", "/", "-", "\\"],
         "arrow": ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"],

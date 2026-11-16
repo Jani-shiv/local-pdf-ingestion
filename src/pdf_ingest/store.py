@@ -109,8 +109,8 @@ class FAISSStore:
             else:
                 self._index = faiss.IndexFlatIP(self.dimension)
                 self._metadata = []
-        except ImportError:
-            raise RuntimeError("faiss-cpu not installed. Run: pip install faiss-cpu")
+        except ImportError as exc:
+            raise RuntimeError("faiss-cpu not installed. Run: pip install faiss-cpu") from exc
 
     def add(self, vectors: np.ndarray, chunks: list[Chunk]) -> None:
         """Add vectors and chunks to the store.
@@ -206,8 +206,8 @@ class ChromaStore:
                 name="pdf_chunks",
                 metadata={"hnsw:space": "cosine"},
             )
-        except ImportError:
-            raise RuntimeError("chromadb not installed. Run: pip install chromadb")
+        except ImportError as exc:
+            raise RuntimeError("chromadb not installed. Run: pip install chromadb") from exc
 
     def add(self, vectors: np.ndarray, chunks: list[Chunk]) -> None:
         """Add vectors and chunks to the store.

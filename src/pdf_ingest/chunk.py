@@ -8,7 +8,7 @@ This module provides text chunking functionality with three strategies:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from .config import settings
 

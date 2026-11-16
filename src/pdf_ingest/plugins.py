@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 if TYPE_CHECKING:
     from .chunk import Chunk
@@ -38,7 +38,7 @@ class ExtractorPlugin(ABC, Generic[T]):
     name: str = "base"
     description: str = "Base extractor plugin"
     version: str = "1.0.0"
-    supported_formats: list[str] = ["json", "markdown"]
+    supported_formats: ClassVar[list[str]] = ["json", "markdown"]
 
     @abstractmethod
     def extract(
@@ -74,8 +74,8 @@ class ExtractorPlugin(ABC, Generic[T]):
 class PluginRegistry:
     """Registry for extractor plugins."""
 
-    _plugins: dict[str, type[ExtractorPlugin]] = {}
-    _instances: dict[str, ExtractorPlugin] = {}
+    _plugins: ClassVar[dict[str, type[ExtractorPlugin]]] = {}
+    _instances: ClassVar[dict[str, ExtractorPlugin]] = {}
 
     @classmethod
     def register(cls, name: str, plugin_class: type[ExtractorPlugin]) -> None:

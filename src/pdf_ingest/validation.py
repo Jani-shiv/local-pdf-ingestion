@@ -12,6 +12,7 @@ Example:
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -112,11 +113,8 @@ def validate_file_path(
         )
 
     # Check for path traversal attempts
-    try:
+    with suppress(ValueError):
         path.relative_to(Path.cwd())
-    except ValueError:
-        # Path is outside current directory - allow but warn
-        pass
 
     return path
 

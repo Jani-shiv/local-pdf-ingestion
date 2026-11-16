@@ -20,7 +20,7 @@ import json
 import logging
 import logging.config
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from .config import settings
 
@@ -67,7 +67,7 @@ class ColoredFormatter(logging.Formatter):
     Adds ANSI color codes to log level names for readability.
     """
 
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "DEBUG": "\033[36m",    # Cyan
         "INFO": "\033[32m",     # Green
         "WARNING": "\033[33m",  # Yellow
