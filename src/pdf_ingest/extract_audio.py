@@ -1,4 +1,5 @@
 """Audio extraction using faster-whisper (local, fast)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

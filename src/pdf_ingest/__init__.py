@@ -1,4 +1,5 @@
 """Local PDF ingestion pipeline: extract, chunk, embed, store, search, chat, summarize."""
+
 from __future__ import annotations
 
 from .benchmark import BenchmarkResult, run_benchmark

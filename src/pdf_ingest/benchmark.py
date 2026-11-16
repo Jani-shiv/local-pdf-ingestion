@@ -1,4 +1,5 @@
 """Performance benchmarking for pdf-ingest."""
+
 from __future__ import annotations
 
 import asyncio
@@ -20,6 +21,7 @@ from .search import HybridSearcher
 @dataclass
 class BenchmarkResult:
     """Result of a benchmark run."""
+
     name: str
     iterations: int
     total_time: float
@@ -88,6 +90,7 @@ def benchmark_chunking(text: str, iterations: int = 100) -> list[BenchmarkResult
     results = []
 
     for strategy in strategies:
+
         def chunk_func(s=strategy):
             return chunk_pages(
                 [{"page": 1, "text": text}],
@@ -186,6 +189,7 @@ def benchmark_chat(
     chat = RAGChat(vector_store_path, dimension)
 
     for query in queries:
+
         def chat_func(q=query):
             return chat.chat(q, top_k=5)
 
@@ -226,6 +230,7 @@ def run_benchmark(
 
     # Create temp vector store for search/chat benchmarks
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir) / "bench_vs"
 
@@ -234,8 +239,10 @@ def run_benchmark(
         for _i, text in enumerate(test_texts[:3]):
             chunks = chunk_pages([{"page": 1, "text": text}], chunk_size=500, overlap=50)
             from .embed import embed_texts
+
             vectors = embed_texts([c["text"] for c in chunks], use_local=True)
             from .store import save_vector_store
+
             save_vector_store(chunks, np.array(vectors, dtype=np.float32), tmp_path)
 
         dimension = 384  # all-MiniLM-L6-v2 dimension
@@ -260,6 +267,7 @@ def run_benchmark(
     # Save to file if requested
     if output_path:
         import json
+
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -288,6 +296,7 @@ def run_benchmark(
 
 if __name__ == "__main__":
     import sys
+
     output = sys.argv[1] if len(sys.argv) > 1 else None
     include_chat = "--chat" in sys.argv
     run_benchmark(output, include_chat=include_chat)

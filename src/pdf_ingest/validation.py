@@ -9,6 +9,7 @@ Example:
     InputValidator.validate_ingest_args(args)
     sanitized = sanitize_string(user_input)
 """
+
 from __future__ import annotations
 
 import re
@@ -419,7 +420,9 @@ def validate_extract_type(value: str) -> str:
     """
     allowed = {"recipes", "invoices", "medical", "contracts", "study"}
     if value not in allowed:
-        raise ConfigurationError(f"Invalid extract type: {value}. Allowed: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid extract type: {value}. Allowed: {', '.join(sorted(allowed))}"
+        )
     return value
 
 
@@ -441,7 +444,9 @@ def validate_extract_format(value: str, extract_type: str) -> str:
         allowed.add("csv")
 
     if value not in allowed:
-        raise ConfigurationError(f"Invalid format: {value}. Allowed for {extract_type}: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid format: {value}. Allowed for {extract_type}: {', '.join(sorted(allowed))}"
+        )
     return value
 
 
@@ -459,7 +464,9 @@ def validate_study_format(value: str) -> str:
     """
     allowed = {"flashcards", "mindmap", "quiz", "all"}
     if value not in allowed:
-        raise ConfigurationError(f"Invalid study format: {value}. Allowed: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid study format: {value}. Allowed: {', '.join(sorted(allowed))}"
+        )
     return value
 
 
@@ -495,7 +502,9 @@ def validate_chunk_strategy(value: str) -> str:
     """
     allowed = {"character", "semantic", "recursive"}
     if value not in allowed:
-        raise ConfigurationError(f"Invalid chunk strategy: {value}. Allowed: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid chunk strategy: {value}. Allowed: {', '.join(sorted(allowed))}"
+        )
     return value
 
 
@@ -513,7 +522,9 @@ def validate_vector_store(value: str) -> str:
     """
     allowed = {"faiss", "chroma"}
     if value not in allowed:
-        raise ConfigurationError(f"Invalid vector store: {value}. Allowed: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid vector store: {value}. Allowed: {', '.join(sorted(allowed))}"
+        )
     return value
 
 
@@ -532,7 +543,9 @@ def validate_log_level(value: str) -> str:
     allowed = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     value_upper = value.upper()
     if value_upper not in allowed:
-        raise ConfigurationError(f"Invalid log level: {value}. Allowed: {', '.join(sorted(allowed))}")
+        raise ConfigurationError(
+            f"Invalid log level: {value}. Allowed: {', '.join(sorted(allowed))}"
+        )
     return value_upper
 
 

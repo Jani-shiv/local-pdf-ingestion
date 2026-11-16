@@ -78,20 +78,32 @@ line-length = 100
 target-version = "py310"
 lint.select = ["E", "F", "I", "UP", "B", "C4", "ANN", "T20", "PT", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "SIM", "TCH", "ARG", "PTH", "NPY", "RUF", "ASYNC", "LOG", "PIE", "TD", "DTZ", "RET", "EXE", "ISC", "ICN", "COM", "PERF", "FURB", "AIR", "TID"]
 lint.ignore = [
+    # Trailing comma rule conflicts with ruff formatter
+    "COM812",
     # Line length is handled by formatter or relaxed
     "E501",
     # Loop variable overwrite is idiomatic in data parsing / cleaning loops
     "PLW2901",
+    # Using global for singleton instances in FastAPI is standard pattern
+    "PLW0603",
+    # FastAPI File(...) default parameter pattern
+    "B008",
+    # Blocking sync calls in async handler (tmp_path.unlink)
+    "ASYNC240",
     # Return within try block is cleaner and avoids redundant else nesting
     "TRY300",
     # Unused function arguments are common in overrides / callbacks
-    "ARG001", "ARG002",
+    "ARG001", "ARG002", "ARG005",
     # Long error messages in raise – common in user-facing CLIs
     "TRY003",
     # Single-line if collapses are a readability choice
     "SIM102",
     # os.path vs pathlib – mixed codebases are fine
     "PTH118", "PTH123",
+    # Broad exception in tests
+    "PT011",
+    # Regex match string in pytest.raises
+    "RUF043",
     # --- Complexity thresholds: existing code is well-structured ---
     # Too many arguments / positional arguments (PLR0913, PLR0917)
     "PLR0913", "PLR0917",

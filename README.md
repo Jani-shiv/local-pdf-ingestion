@@ -194,8 +194,10 @@ MAX_TOKENS=2048
 
 ```python
 from pdf_ingest import (
-    IngestionPipeline, KnowledgeBase,
-    RecipeExtractor, InvoiceExtractor,
+    IngestionPipeline,
+    KnowledgeBase,
+    RecipeExtractor,
+    InvoiceExtractor,
 )
 
 # Build pipeline

@@ -1,5 +1,7 @@
 """Comprehensive edge case tests for pdf-ingest."""
+
 import json
+import logging
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
@@ -57,6 +59,7 @@ from pdf_ingest.validation import (
 
 # ===== Config validation tests =====
 
+
 class TestConfigValidation:
     """Tests for configuration validation."""
 
@@ -100,6 +103,7 @@ class TestConfigValidation:
 
 
 # ===== Input validation tests =====
+
 
 class TestInputValidation:
     """Tests for input validation and sanitization."""
@@ -298,6 +302,7 @@ class TestInputValidation:
 
 # ===== Async embedding tests =====
 
+
 class TestAsyncEmbeddings:
     """Tests for async embedding functions."""
 
@@ -305,12 +310,13 @@ class TestAsyncEmbeddings:
     async def test_embed_texts_async_local(self, monkeypatch) -> None:
         """Test async local embeddings."""
         monkeypatch.setattr("pdf_ingest.embed.settings.use_local_embeddings", True)
-        
+
         # Mock the LocalEmbedder.embed_async
         from pdf_ingest.embed import LocalEmbedder
+
         mock_embed = AsyncMock(return_value=np.array([[0.1, 0.2], [0.3, 0.4]]))
         monkeypatch.setattr(LocalEmbedder, "embed_async", mock_embed)
-        
+
         result = await embed_texts_async(["text1", "text2"])
         assert len(result) == 2
         assert result[0] == [0.1, 0.2]
@@ -319,17 +325,19 @@ class TestAsyncEmbeddings:
     async def test_embed_query_async_local(self, monkeypatch) -> None:
         """Test async query embedding with local embeddings."""
         monkeypatch.setattr("pdf_ingest.embed.settings.use_local_embeddings", True)
-        
+
         from pdf_ingest.embed import LocalEmbedder
+
         mock_embed = AsyncMock(return_value=np.array([[0.1, 0.2]]))
         monkeypatch.setattr(LocalEmbedder, "embed_async", mock_embed)
-        
+
         result = await embed_query_async("test query")
         assert isinstance(result, np.ndarray)
         assert result.shape == (2,)
 
 
 # ===== Async search tests =====
+
 
 class TestAsyncSearch:
     """Tests for async search functions."""
@@ -340,28 +348,29 @@ class TestAsyncSearch:
         from pdf_ingest.chunk import Chunk
         from pdf_ingest.search import HybridSearcher
         from pdf_ingest.store import FAISSStore
-        
+
         # Create a test store
         store = FAISSStore(tmp_path / "faiss", dimension=3)
         vectors = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
         chunks = [Chunk(id="c1", page=1, chunk=0, text="test")]
         store.add(vectors, chunks)
         store.save()
-        
+
         # Mock embed_query_async
         async def mock_embed(q):
             return np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        
+
         monkeypatch.setattr("pdf_ingest.search.embed_query_async", mock_embed)
-        
+
         searcher = HybridSearcher(tmp_path / "faiss", dimension=3)
         results = await searcher.search_async("test", top_k=1)
-        
+
         assert len(results) == 1
         assert results[0].id == "c1"
 
 
 # ===== Progress bar tests =====
+
 
 class TestProgressBar:
     """Tests for progress bar utilities."""
@@ -387,13 +396,13 @@ class TestProgressBar:
         mp = MultiProgress()
         bar1 = mp.add_bar("bar1", total=10, desc="Bar 1")
         bar2 = mp.add_bar("bar2", total=5, desc="Bar 2")
-        
+
         bar1.update(5)
         bar2.update(3)
-        
+
         assert bar1._bar.n == 5
         assert bar2._bar.n == 3
-        
+
         mp.close_all()
 
     def test_spinner(self) -> None:
@@ -404,6 +413,7 @@ class TestProgressBar:
 
 
 # ===== Logging tests =====
+
 
 class TestLogging:
     """Tests for logging configuration."""
@@ -423,8 +433,13 @@ class TestLogging:
         """Test JSON formatter."""
         formatter = JSONFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="", lineno=1,
-            msg="Test message", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=1,
+            msg="Test message",
+            args=(),
+            exc_info=None,
         )
         record.module = "test_module"
         record.funcName = "test_func"
@@ -438,14 +453,20 @@ class TestLogging:
         """Test colored formatter."""
         formatter = ColoredFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="", lineno=1,
-            msg="Test", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=1,
+            msg="Test",
+            args=(),
+            exc_info=None,
         )
         result = formatter.format(record)
         assert "Test" in result
 
 
 # ===== Batch ingestion tests =====
+
 
 class TestBatchIngestion:
     """Tests for batch ingestion functionality."""
@@ -466,10 +487,10 @@ class TestBatchIngestion:
     def test_ingest_batch_with_progress(self, tmp_path, sample_pdf, monkeypatch) -> None:
         """Test batch ingestion with progress."""
         monkeypatch.setattr("pdf_ingest.pipeline.settings.use_local_embeddings", True)
-        
+
         pl = IngestionPipeline(vector_store_path=tmp_path / "vs", chunk_size=500, overlap=50)
         pl.ingest_pdf(sample_pdf)
-        
+
         # Test batch ingest
         result = pl.ingest_batch_with_progress([sample_pdf])
         assert result.total_files == 1
@@ -478,6 +499,7 @@ class TestBatchIngestion:
 
 
 # ===== Vector store edge cases =====
+
 
 class TestVectorStoreEdgeCases:
     """Tests for vector store edge cases."""
@@ -500,7 +522,7 @@ class TestVectorStoreEdgeCases:
         mock_client = Mock()
         mock_collection = Mock()
         mock_client.get_or_create_collection.return_value = mock_collection
-        
+
         with patch("pdf_ingest.store.chromadb.PersistentClient", return_value=mock_client):
             store = ChromaStore(tmp_path / "chroma", dimension=3)
             assert store.collection == mock_collection
@@ -521,6 +543,7 @@ class TestVectorStoreEdgeCases:
 
 # ===== Pipeline edge cases =====
 
+
 class TestPipelineEdgeCases:
     """Tests for pipeline edge cases."""
 
@@ -534,7 +557,7 @@ class TestPipelineEdgeCases:
         """Test ingesting directory with unsupported files."""
         unsupported = tmp_path / "test.xyz"
         unsupported.write_text("test")
-        
+
         pl = IngestionPipeline(vector_store_path=tmp_path / "vs")
         results = pl.ingest_directory(tmp_path)
         assert results == []
@@ -544,7 +567,7 @@ class TestPipelineEdgeCases:
         pl = IngestionPipeline(vector_store_path=tmp_path / "vs")
         unsupported = tmp_path / "test.xyz"
         unsupported.write_text("test")
-        
+
         result = pl.ingest_batch([unsupported])
         assert result.total_files == 1
         assert result.failed == 1
@@ -553,6 +576,7 @@ class TestPipelineEdgeCases:
 
 # ===== Chat edge cases =====
 
+
 class TestChatEdgeCases:
     """Tests for chat edge cases."""
 
@@ -560,14 +584,14 @@ class TestChatEdgeCases:
         """Test RAGChat initialization with defaults."""
         from pdf_ingest.chunk import Chunk
         from pdf_ingest.store import FAISSStore
-        
+
         # Create a minimal store
         store = FAISSStore(tmp_path / "faiss", dimension=3)
         vectors = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
         chunks = [Chunk(id="c1", page=1, chunk=0, text="test")]
         store.add(vectors, chunks)
         store.save()
-        
+
         chat = RAGChat(tmp_path / "faiss", dimension=3)
         assert chat.model == settings.llm_model
         assert chat.base_url == settings.ollama_url
@@ -576,13 +600,13 @@ class TestChatEdgeCases:
         """Test clearing chat history."""
         from pdf_ingest.chunk import Chunk
         from pdf_ingest.store import FAISSStore
-        
+
         store = FAISSStore(tmp_path / "faiss", dimension=3)
         vectors = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
         chunks = [Chunk(id="c1", page=1, chunk=0, text="test")]
         store.add(vectors, chunks)
         store.save()
-        
+
         chat = RAGChat(tmp_path / "faiss", dimension=3)
         chat.history.append(chat.ChatMessage(role="user", content="test"))
         chat.clear_history()
@@ -601,6 +625,7 @@ class TestChatEdgeCases:
 
 
 # ===== Search edge cases =====
+
 
 class TestSearchEdgeCases:
     """Tests for search edge cases."""
@@ -627,28 +652,31 @@ class TestSearchEdgeCases:
 
 # ===== Integration tests =====
 
+
 class TestIntegration:
     """Integration tests for complete workflows."""
 
     def test_full_pipeline_ingest_and_search(self, tmp_path, sample_pdf, monkeypatch) -> None:
         """Test complete ingest and search workflow."""
         monkeypatch.setattr("pdf_ingest.pipeline.settings.use_local_embeddings", True)
-        
+
         pl = IngestionPipeline(vector_store_path=tmp_path / "vs", chunk_size=500, overlap=50)
         result = pl.ingest_pdf(sample_pdf)
-        
+
         assert result.chunks
         assert len(result.vectors) == len(result.chunks)
-        
+
         # Search
         kb = KnowledgeBase(tmp_path / "vs")
         from pdf_ingest.search import search
+
         search_results = search("alpha", tmp_path / "vs", kb.store.dimension, top_k=5)
-        
+
         assert len(search_results) > 0
 
 
 # ===== Chunk edge cases =====
+
 
 class TestChunkEdgeCases:
     """Tests for chunking edge cases."""
@@ -681,17 +709,18 @@ class TestChunkEdgeCases:
 
 # ===== Extract edge cases =====
 
+
 class TestExtractEdgeCases:
     """Tests for extraction edge cases."""
 
     def test_recipe_extractor_empty_chunks(self) -> None:
         """Test recipe extractor with empty chunks."""
         from pdf_ingest.specialize import RecipeExtractor
-        
+
         class MockChat:
             def _call_ollama(self, prompt, stream=False):
                 return json.dumps({"title": "Test", "ingredients": [], "instructions": []})
-        
+
         extractor = RecipeExtractor(MockChat())
         recipes = extractor.extract([])
         assert recipes == []
@@ -699,11 +728,11 @@ class TestExtractEdgeCases:
     def test_invoice_extractor_empty_chunks(self) -> None:
         """Test invoice extractor with empty chunks."""
         from pdf_ingest.specialize import InvoiceExtractor
-        
+
         class MockChat:
             def _call_ollama(self, prompt, stream=False):
                 return json.dumps({"vendor": "Test", "total": 0})
-        
+
         extractor = InvoiceExtractor(MockChat())
         invoices = extractor.extract([])
         assert invoices == []

@@ -1,4 +1,5 @@
 """Configuration management for pdf-ingest."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class ConfigurationError(ValueError):
     """Raised when configuration validation fails."""
-
 
 
 class Settings(BaseSettings):

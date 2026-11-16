@@ -10,6 +10,7 @@ Example:
     for inv in invoices:
         print(inv.to_markdown())
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ class LineItem:
         unit_price: Price per unit
         total: Line total (quantity * unit_price)
     """
+
     description: str
     quantity: float | None = None
     unit_price: float | None = None
@@ -56,6 +58,7 @@ class Invoice:
         payment_method: Payment method used
         source_page: Source document page number
     """
+
     vendor: str
     invoice_number: str | None = None
     date: str | None = None
@@ -96,7 +99,9 @@ class Invoice:
             lines.append("| Description | Qty | Unit Price | Total |")
             lines.append("|---|---:|---:|---:|")
             for item in self.line_items:
-                lines.append(f"| {item.description} | {item.quantity or ''} | {item.unit_price or ''} | {item.total or ''} |")
+                lines.append(
+                    f"| {item.description} | {item.quantity or ''} | {item.unit_price or ''} | {item.total or ''} |"
+                )
 
         lines.append(f"\n**Subtotal:** {self.currency} {self.subtotal or 'N/A'}")
         lines.append(f"**Tax:** {self.currency} {self.tax or 'N/A'}")
@@ -178,8 +183,8 @@ class InvoiceExtractor:
   "payment_method": "string or null"
 }}
 
-Text (page {chunk['page']}, chunk {chunk['chunk']}):
-{chunk['text'][:3000]}"""
+Text (page {chunk["page"]}, chunk {chunk["chunk"]}):
+{chunk["text"][:3000]}"""
 
         response = self.chat._call_ollama(prompt, stream=False)
         try:
@@ -210,7 +215,9 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
                 break
 
         # Try to find total
-        total_matches = re.findall(r"(?i)(?:total|amount\s+due|balance\s+due)[:\s]*[$€£]?\s*(\d+[.,]\d{2})", text)
+        total_matches = re.findall(
+            r"(?i)(?:total|amount\s+due|balance\s+due)[:\s]*[$€£]?\s*(\d+[.,]\d{2})", text
+        )
         if total_matches:
             total = float(total_matches[-1].replace(",", ""))
 

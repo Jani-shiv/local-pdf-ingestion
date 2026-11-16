@@ -1,4 +1,5 @@
 """Step 1: pull selectable text out of a PDF, page by page with metadata extraction."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ class Page(TypedDict):
 @dataclass
 class DocumentMetadata:
     """Metadata extracted from a PDF document."""
+
     title: str | None = None
     author: str | None = None
     subject: str | None = None
@@ -79,7 +81,10 @@ def extract_pages_with_metadata(pdf_path: str | Path) -> tuple[list[Page], int, 
             metadata.producer = info.get("producer") or None
 
             # Parse dates
-            for date_field, attr in [("creationDate", "creation_date"), ("modDate", "modification_date")]:
+            for date_field, attr in [
+                ("creationDate", "creation_date"),
+                ("modDate", "modification_date"),
+            ]:
                 date_str = info.get(date_str := date_field)
                 if date_str:
                     try:

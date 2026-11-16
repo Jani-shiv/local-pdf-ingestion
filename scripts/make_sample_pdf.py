@@ -1,21 +1,28 @@
 """Create documents/sample.pdf so the pipeline can be tried without your own file."""
+
 from pathlib import Path
 
 import pymupdf
 
 PAGES = [
-    ("Deployment guide: overview",
-     "This sample guide describes a small deployment. Step one is to build the container image. "
-     "Step two is to push the image to a registry. Step three is to apply the Kubernetes manifests. "
-     "Always verify the rollout status before sending traffic to the new version. " * 6),
-    ("Authentication process",
-     "Users authenticate with a short lived token issued by the identity provider. "
-     "The API gateway validates the token signature and expiry on every request. "
-     "Expired tokens are rejected and the client must request a new one. " * 7),
-    ("Troubleshooting",
-     "If a pod stays in Pending, check node resources and scheduling events. "
-     "If a pod restarts repeatedly, read the previous container logs. "
-     "If a service is unreachable, confirm the selector labels match the pods. " * 7),
+    (
+        "Deployment guide: overview",
+        "This sample guide describes a small deployment. Step one is to build the container image. "
+        "Step two is to push the image to a registry. Step three is to apply the Kubernetes manifests. "
+        "Always verify the rollout status before sending traffic to the new version. " * 6,
+    ),
+    (
+        "Authentication process",
+        "Users authenticate with a short lived token issued by the identity provider. "
+        "The API gateway validates the token signature and expiry on every request. "
+        "Expired tokens are rejected and the client must request a new one. " * 7,
+    ),
+    (
+        "Troubleshooting",
+        "If a pod stays in Pending, check node resources and scheduling events. "
+        "If a pod restarts repeatedly, read the previous container logs. "
+        "If a service is unreachable, confirm the selector labels match the pods. " * 7,
+    ),
 ]
 
 

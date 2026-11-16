@@ -1,4 +1,5 @@
 """Enhanced command line entry point with all features."""
+
 from __future__ import annotations
 
 import argparse
@@ -26,17 +27,25 @@ def build_parser() -> argparse.ArgumentParser:
     # Ingest command
     ingest = subparsers.add_parser("ingest", help="Ingest documents into knowledge base")
     ingest.add_argument("paths", nargs="+", help="File(s) or directory to ingest")
-    ingest.add_argument("-o", "--output", default=str(settings.vector_store_path), help="Vector store path")
+    ingest.add_argument(
+        "-o", "--output", default=str(settings.vector_store_path), help="Vector store path"
+    )
     ingest.add_argument("--chunk-size", type=int, default=settings.chunk_size)
     ingest.add_argument("--overlap", type=int, default=settings.chunk_overlap)
-    ingest.add_argument("--strategy", choices=["character", "semantic", "recursive"], default=settings.chunk_strategy)
+    ingest.add_argument(
+        "--strategy",
+        choices=["character", "semantic", "recursive"],
+        default=settings.chunk_strategy,
+    )
     ingest.add_argument("--ocr", action="store_true", help="Use OCR for PDFs")
     ingest.add_argument("--recursive", action="store_true", help="Recursively ingest directory")
 
     # Chat command
     chat = subparsers.add_parser("chat", help="Chat with your knowledge base")
     chat.add_argument("query", nargs="?", help="Question to ask (interactive if omitted)")
-    chat.add_argument("-s", "--store", default=str(settings.vector_store_path), help="Vector store path")
+    chat.add_argument(
+        "-s", "--store", default=str(settings.vector_store_path), help="Vector store path"
+    )
     chat.add_argument("--model", default=settings.llm_model)
     chat.add_argument("--top-k", type=int, default=settings.top_k)
     chat.add_argument("--threshold", type=float, default=settings.similarity_threshold)
@@ -61,7 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
     # Study guide command
     study = subparsers.add_parser("study", help="Generate study materials")
     study.add_argument("-s", "--store", default=str(settings.vector_store_path))
-    study.add_argument("--format", choices=["flashcards", "mindmap", "quiz", "all"], default="flashcards")
+    study.add_argument(
+        "--format", choices=["flashcards", "mindmap", "quiz", "all"], default="flashcards"
+    )
     study.add_argument("--output", help="Output file")
     study.add_argument("--anki", action="store_true", help="Export as Anki CSV")
 
@@ -105,8 +116,20 @@ def cmd_ingest(args) -> int:
             pattern = "**/*" if args.recursive else "*"
             for file_path in path.glob(pattern):
                 if file_path.is_file() and file_path.suffix.lower() in {
-                    ".pdf", ".mp3", ".wav", ".m4a", ".flac", ".ogg",
-                    ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp",
+                    ".pdf",
+                    ".mp3",
+                    ".wav",
+                    ".m4a",
+                    ".flac",
+                    ".ogg",
+                    ".docx",
+                    ".xlsx",
+                    ".pptx",
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".tiff",
+                    ".bmp",
                 }:
                     files_to_process.append(file_path)
         else:
@@ -192,6 +215,7 @@ def cmd_search(args) -> int:
 
     kb = create_knowledge_base(args.store)
     from .search import search
+
     results = search(args.query, args.store, kb.store.dimension, args.top_k, args.threshold)
 
     if args.json:
@@ -239,6 +263,7 @@ def cmd_study(args) -> int:
 
     if args.format == "flashcards" and args.anki:
         from .specialize import StudyGuide
+
         guide = StudyGuide(**result)
         output = guide.to_anki_csv()
     else:
@@ -279,11 +304,20 @@ def cmd_extract(args) -> int:
     elif args.format == "csv" and args.type == "invoices":
         import csv
         from io import StringIO
+
         buf = StringIO()
         writer = csv.writer(buf)
         writer.writerow(["Vendor", "Date", "Total", "Category", "Items"])
         for item in items:
-            writer.writerow([item.vendor, item.date or "", item.total or "", item.category or "", len(item.line_items)])
+            writer.writerow(
+                [
+                    item.vendor,
+                    item.date or "",
+                    item.total or "",
+                    item.category or "",
+                    len(item.line_items),
+                ]
+            )
         output = buf.getvalue()
     else:
         output = json.dumps([item.to_dict() for item in items], indent=2, ensure_ascii=False)

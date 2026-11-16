@@ -1,4 +1,5 @@
 """Streamlit web UI for pdf-ingest."""
+
 import asyncio
 import json
 import shutil
@@ -110,14 +111,21 @@ def sidebar() -> str:
         settings.chunk_size = st.number_input("Chunk Size", 100, 5000, settings.chunk_size)
         settings.chunk_overlap = st.number_input("Overlap", 0, 1000, settings.chunk_overlap)
         settings.chunk_strategy = st.selectbox(
-            "Chunk Strategy", ["semantic", "recursive", "character"], index=0,
+            "Chunk Strategy",
+            ["semantic", "recursive", "character"],
+            index=0,
         )
         settings.top_k = st.number_input("Top K Results", 1, 20, settings.top_k)
         settings.similarity_threshold = st.slider(
-            "Similarity Threshold", 0.0, 1.0, settings.similarity_threshold, 0.05,
+            "Similarity Threshold",
+            0.0,
+            1.0,
+            settings.similarity_threshold,
+            0.05,
         )
         settings.use_hybrid_search = st.checkbox(
-            "Hybrid Search (Vector + Keyword)", value=settings.use_hybrid_search,
+            "Hybrid Search (Vector + Keyword)",
+            value=settings.use_hybrid_search,
         )
 
         st.divider()
@@ -135,7 +143,8 @@ def sidebar() -> str:
                 st.rerun()
         with col2:
             st.session_state.show_debug = st.checkbox(
-                "Debug Mode", value=st.session_state.get("show_debug", False),
+                "Debug Mode",
+                value=st.session_state.get("show_debug", False),
             )
 
         # Health check
@@ -185,7 +194,8 @@ def page_ingest(vector_store: str) -> None:
                 progress_bar.progress((i + 1) / len(uploaded))
 
                 with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=f".{file.name.split('.')[-1]}",
+                    delete=False,
+                    suffix=f".{file.name.split('.')[-1]}",
                 ) as tmp:
                     tmp.write(file.read())
                     tmp_path = Path(tmp.name)
@@ -219,7 +229,9 @@ def page_ingest(vector_store: str) -> None:
 
     with tab2:
         urls = st.text_area(
-            "URLs (one per line)", height=150, placeholder="https://example.com/article\nhttps://blog.example.com/post",
+            "URLs (one per line)",
+            height=150,
+            placeholder="https://example.com/article\nhttps://blog.example.com/post",
         )
         if st.button("Ingest URLs", type="primary") and urls.strip():
             url_list = [u.strip() for u in urls.split("\n") if u.strip()]
@@ -257,15 +269,15 @@ def page_ingest(vector_store: str) -> None:
                 progress_bar.progress((i + 1) / len(audio_files))
 
                 with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=f".{file.name.split('.')[-1]}",
+                    delete=False,
+                    suffix=f".{file.name.split('.')[-1]}",
                 ) as tmp:
                     tmp.write(file.read())
                     tmp_path = Path(tmp.name)
                 try:
                     result = pipeline.ingest_audio(tmp_path)
                     st.success(
-                        f"✅ **{result.source}**: "
-                        f"{result.metadata.get('chunks', 0)} chunks",
+                        f"✅ **{result.source}**: {result.metadata.get('chunks', 0)} chunks",
                     )
                 except Exception as e:
                     handle_error(e, f"transcribing {file.name}")
@@ -301,11 +313,7 @@ def page_chat(vector_store: str) -> None:
     col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
         model_options = ["llama3.1:8b", "phi3:mini", "mistral:7b", "gemma2:9b"]
-        idx = (
-            model_options.index(settings.llm_model)
-            if settings.llm_model in model_options
-            else 0
-        )
+        idx = model_options.index(settings.llm_model) if settings.llm_model in model_options else 0
         model = st.selectbox("Model", model_options, index=idx)
         settings.llm_model = model
     with col2:
@@ -354,14 +362,16 @@ def page_chat(vector_store: str) -> None:
                                 st.markdown(f"**[{s.id}]** Page {s.page} • Score: {s.score:.3f}")
                                 st.text(s.text[:300] + "...")
 
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": full_content,
-                        "sources": [
-                            {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
-                            for s in response.sources
-                        ],
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": full_content,
+                            "sources": [
+                                {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
+                                for s in response.sources
+                            ],
+                        }
+                    )
                 else:
                     # Non-streaming response
                     with st.spinner("Thinking..."):
@@ -375,14 +385,16 @@ def page_chat(vector_store: str) -> None:
                                 st.markdown(f"**[{s.id}]** Page {s.page} • Score: {s.score:.3f}")
                                 st.text(s.text[:300] + "...")
 
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": response.content,
-                        "sources": [
-                            {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
-                            for s in response.sources
-                        ],
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": response.content,
+                            "sources": [
+                                {"id": s.id, "text": s.text, "page": s.page, "score": s.score}
+                                for s in response.sources
+                            ],
+                        }
+                    )
             except Exception as e:
                 handle_error(e, "chat")
 
@@ -415,8 +427,7 @@ def page_search(vector_store: str) -> None:
                     )
                     PREVIEW_LENGTH = 500
                     st.text(
-                        r.text[:PREVIEW_LENGTH]
-                        + ("..." if len(r.text) > PREVIEW_LENGTH else ""),
+                        r.text[:PREVIEW_LENGTH] + ("..." if len(r.text) > PREVIEW_LENGTH else ""),
                     )
                     st.divider()
         except Exception as e:
@@ -464,7 +475,10 @@ def page_summarize(vector_store: str) -> None:
                     guide = StudyGuide(**result)
                     csv_data = guide.to_anki_csv()
                     st.download_button(
-                        "Download Anki CSV", csv_data, "study_cards.csv", "text/csv",
+                        "Download Anki CSV",
+                        csv_data,
+                        "study_cards.csv",
+                        "text/csv",
                     )
                 else:
                     st.json(result)
@@ -474,7 +488,8 @@ def page_summarize(vector_store: str) -> None:
     with tab3:
         st.subheader("Extract Structured Data")
         extract_type = st.selectbox(
-            "Type", ["recipes", "invoices", "medical", "contracts", "study"],
+            "Type",
+            ["recipes", "invoices", "medical", "contracts", "study"],
         )
         out_fmt = st.selectbox("Output Format", ["json", "markdown"])
 
@@ -516,7 +531,8 @@ def page_manage(vector_store: str) -> None:
             try:
                 store = load_vector_store(vector_store, kb.store.dimension)
                 all_results = store.search(
-                    np.zeros(kb.store.dimension), store.count,
+                    np.zeros(kb.store.dimension),
+                    store.count,
                 )
                 data = {
                     "meta": {
@@ -547,13 +563,17 @@ def page_manage(vector_store: str) -> None:
             try:
                 store = load_vector_store(vector_store, kb.store.dimension)
                 all_results = store.search(
-                    np.zeros(kb.store.dimension), store.count,
+                    np.zeros(kb.store.dimension),
+                    store.count,
                 )
                 md = "# Knowledge Base Export\n\n"
                 for _, m in all_results:
                     md += f"## [{m['id']}] Page {m['page']}\n{m['text']}\n\n---\n\n"
                 st.download_button(
-                    "Download Markdown", md, "knowledge_base.md", "text/markdown",
+                    "Download Markdown",
+                    md,
+                    "knowledge_base.md",
+                    "text/markdown",
                 )
             except Exception as e:
                 handle_error(e, "Markdown export")

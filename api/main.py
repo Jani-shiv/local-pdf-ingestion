@@ -1,4 +1,5 @@
 """FastAPI backend for pdf-ingest."""
+
 from __future__ import annotations
 
 import tempfile
@@ -45,18 +46,19 @@ app.add_middleware(
 # Rate limiting storage (in production, use Redis)
 _rate_limit_store: dict[str, list[float]] = {}
 
+
 # Request logging middleware
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
+
         # Log request
-        
+
         response = await call_next(request)
-        
+
         # Log response
         process_time = time.time() - start_time
-        
+
         response.headers["X-Process-Time"] = str(process_time)
         return response
 
@@ -70,16 +72,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         client_ip = request.client.host if request.client else "unknown"
         current_time = time.time()
-        
+
         # Clean old entries
         if client_ip in _rate_limit_store:
             _rate_limit_store[client_ip] = [
-                t for t in _rate_limit_store[client_ip]
-                if current_time - t < 60
+                t for t in _rate_limit_store[client_ip] if current_time - t < 60
             ]
         else:
             _rate_limit_store[client_ip] = []
-        
+
         # Check rate limit
         if len(_rate_limit_store[client_ip]) >= self.requests_per_minute:
             return JSONResponse(
@@ -87,7 +88,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Rate limit exceeded. Please try again later."},
                 headers={"Retry-After": "60"},
             )
-        
+
         _rate_limit_store[client_ip].append(current_time)
         return await call_next(request)
 
@@ -184,16 +185,17 @@ async def health():
     ollama_connected = False
     vector_store_ready = False
     total_chunks = 0
-    
+
     # Check Ollama connection
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{settings.ollama_url}/api/tags")
             ollama_connected = response.status_code == 200
     except Exception:
         pass
-    
+
     # Check vector store
     try:
         kb_instance = get_kb()
@@ -201,7 +203,7 @@ async def health():
         total_chunks = kb_instance.store.count
     except Exception:
         pass
-    
+
     return HealthResponse(
         status="healthy" if ollama_connected and vector_store_ready else "degraded",
         version="0.2.0",
@@ -242,11 +244,13 @@ async def ingest_file(
             else:
                 raise HTTPException(400, f"Unsupported file type: {suffix}")
 
-            results.append(IngestResponse(
-                source=result.source,
-                chunks=len(result.chunks),
-                metadata=result.metadata,
-            ))
+            results.append(
+                IngestResponse(
+                    source=result.source,
+                    chunks=len(result.chunks),
+                    metadata=result.metadata,
+                )
+            )
         finally:
             tmp_path.unlink(missing_ok=True)
 
@@ -257,14 +261,18 @@ async def ingest_file(
 async def ingest_urls(urls: list[str]):
     pl = get_pipeline()
     results = pl.ingest_web(urls)
-    return [IngestResponse(source=r.source, chunks=len(r.chunks), metadata=r.metadata) for r in results]
+    return [
+        IngestResponse(source=r.source, chunks=len(r.chunks), metadata=r.metadata) for r in results
+    ]
 
 
 @app.post("/ingest/directory", response_model=list[IngestResponse])
 async def ingest_directory(path: str, recursive: bool = True):
     pl = get_pipeline()
     results = pl.ingest_directory(path, recursive=recursive)
-    return [IngestResponse(source=r.source, chunks=len(r.chunks), metadata=r.metadata) for r in results]
+    return [
+        IngestResponse(source=r.source, chunks=len(r.chunks), metadata=r.metadata) for r in results
+    ]
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -273,7 +281,10 @@ async def chat(request: ChatRequest):
     response = kb.ask(request.query, top_k=request.top_k)
     return ChatResponse(
         content=response.content,
-        sources=[{"id": s.id, "text": s.text, "page": s.page, "score": s.score, "source": s.source} for s in response.sources],
+        sources=[
+            {"id": s.id, "text": s.text, "page": s.page, "score": s.score, "source": s.source}
+            for s in response.sources
+        ],
         model=response.model,
     )
 
@@ -293,8 +304,20 @@ async def chat_stream(request: ChatRequest):
 async def search(request: SearchRequest):
     kb = get_kb()
     from pdf_ingest import search as search_fn
-    results = search_fn(request.query, settings.vector_store_path, kb.store.dimension, request.top_k, request.threshold)
-    return [SearchResult(id=r.id, text=r.text, page=r.page, chunk=r.chunk, score=r.score, source=r.source) for r in results]
+
+    results = search_fn(
+        request.query,
+        settings.vector_store_path,
+        kb.store.dimension,
+        request.top_k,
+        request.threshold,
+    )
+    return [
+        SearchResult(
+            id=r.id, text=r.text, page=r.page, chunk=r.chunk, score=r.score, source=r.source
+        )
+        for r in results
+    ]
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
@@ -337,6 +360,7 @@ async def kb_stats():
 @app.delete("/kb")
 async def delete_kb():
     import shutil
+
     shutil.rmtree(settings.vector_store_path, ignore_errors=True)
     global pipeline, kb
     pipeline = None
@@ -349,35 +373,43 @@ async def delete_kb():
 async def websocket_chat(websocket: WebSocket) -> None:
     await websocket.accept()
     kb = get_kb()
-    
+
     try:
         while True:
             data = await websocket.receive_json()
             query = data.get("query", "")
             top_k = data.get("top_k", 5)
-            
+
             if not query:
                 await websocket.send_json({"error": "Query is required"})
                 continue
-            
+
             # Send initial response
             await websocket.send_json({"type": "start", "query": query})
-            
+
             # Stream response
             full_content = ""
             for chunk in kb.ask_stream(query, top_k=top_k):
                 full_content += chunk
                 await websocket.send_json({"type": "chunk", "content": chunk})
-            
+
             # Get sources
             results = kb.ask(query, top_k=top_k)
             sources = [
-                {"id": s.id, "text": s.text[:200], "page": s.page, "score": s.score, "source": s.source}
+                {
+                    "id": s.id,
+                    "text": s.text[:200],
+                    "page": s.page,
+                    "score": s.score,
+                    "source": s.source,
+                }
                 for s in results.sources
             ]
-            
-            await websocket.send_json({"type": "end", "sources": sources, "full_content": full_content})
-            
+
+            await websocket.send_json(
+                {"type": "end", "sources": sources, "full_content": full_content}
+            )
+
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -386,4 +418,5 @@ async def websocket_chat(websocket: WebSocket) -> None:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

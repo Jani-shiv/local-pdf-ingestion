@@ -5,6 +5,7 @@ This module provides text chunking functionality with three strategies:
 - semantic: Sentence-aware chunking using embeddings (falls back to recursive)
 - recursive: Hierarchical splitting by separators (paragraphs, sentences, words)
 """
+
 from __future__ import annotations
 
 import re
@@ -25,6 +26,7 @@ class Chunk(TypedDict):
         chunk: Chunk index within page (0-indexed)
         text: The chunk text content
     """
+
     id: str
     page: int
     chunk: int
@@ -88,7 +90,7 @@ def _split_character(text: str, chunk_size: int, overlap: int) -> list[str]:
     step = chunk_size - overlap
     chunks: list[str] = []
     for start in range(0, len(text), step):
-        piece = text[start:start + chunk_size].strip()
+        piece = text[start : start + chunk_size].strip()
         if piece:
             chunks.append(piece)
         if start + chunk_size >= len(text):
@@ -111,6 +113,7 @@ def _split_semantic(text: str, chunk_size: int, overlap: int) -> list[str]:
     """
     try:
         from sentence_transformers import SentenceTransformer
+
         model = SentenceTransformer(settings.local_embed_model)
     except Exception:
         return _split_recursive(text, chunk_size, overlap)
@@ -129,8 +132,10 @@ def _split_semantic(text: str, chunk_size: int, overlap: int) -> list[str]:
         if current_len + sent_len > chunk_size and current_chunk:
             chunks.append(" ".join(current_chunk).strip())
             overlap_sentences = _get_overlap_sentences(
-                current_chunk, overlap, model,
-                embeddings[i - len(current_chunk):i] if i >= len(current_chunk) else [],
+                current_chunk,
+                overlap,
+                model,
+                embeddings[i - len(current_chunk) : i] if i >= len(current_chunk) else [],
             )
             current_chunk = [*overlap_sentences, sent]
             current_len = sum(len(s) for s in current_chunk) + len(current_chunk) - 1
@@ -218,7 +223,7 @@ def _split_into_sentences(text: str) -> list[str]:
     Returns:
         List of sentences
     """
-    pattern = r'(?<=[.!?])\s+(?=[A-Z])'
+    pattern = r"(?<=[.!?])\s+(?=[A-Z])"
     sentences = re.split(pattern, text.strip())
     return [s.strip() for s in sentences if s.strip()]
 

@@ -10,6 +10,7 @@ Example:
     for c in contracts:
         print(c.to_markdown())
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ class Clause:
         risk_level: "low", "medium", "high", or "critical"
         page: Source page number
     """
+
     title: str
     text: str
     category: str  # payment, termination, liability, ip, confidentiality, etc.
@@ -51,6 +53,7 @@ class Obligation:
         frequency: "one-time", "monthly", "quarterly", "annually"
         clause_ref: Reference to originating clause
     """
+
     description: str
     party: str  # me, them, both
     due_date: str | None = None
@@ -74,6 +77,7 @@ class Contract:
         key_terms: Dictionary of key terms
         source_page: Source document page number
     """
+
     title: str
     parties: list[str] = field(default_factory=list)
     effective_date: str | None = None
@@ -113,7 +117,9 @@ class Contract:
         if self.clauses:
             lines.append("\n## Key Clauses")
             for clause in self.clauses:
-                risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴"}.get(clause.risk_level, "")
+                risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴"}.get(
+                    clause.risk_level, ""
+                )
                 lines.append(f"### {clause.title} {risk_emoji} ({clause.category})")
                 lines.append(f"*Page {clause.page}*")
                 lines.append(f"{clause.text[:500]}...")
@@ -124,7 +130,9 @@ class Contract:
             lines.append("| Due | Frequency | Party | Description |")
             lines.append("|---|---|---|---|")
             for obl in sorted(self.obligations, key=lambda x: x.due_date or "9999-12-31"):
-                lines.append(f"| {obl.due_date or 'TBD'} | {obl.frequency or 'One-time'} | {obl.party} | {obl.description} |")
+                lines.append(
+                    f"| {obl.due_date or 'TBD'} | {obl.frequency or 'One-time'} | {obl.party} | {obl.description} |"
+                )
 
         return "\n".join(lines)
 
@@ -190,8 +198,8 @@ class ContractExtractor:
   "key_terms": {{}}
 }}
 
-Text (page {chunk['page']}, chunk {chunk['chunk']}):
-{chunk['text'][:4000]}"""
+Text (page {chunk["page"]}, chunk {chunk["chunk"]}):
+{chunk["text"][:4000]}"""
 
         response = self.chat._call_ollama(prompt, stream=False)
         try:
@@ -221,9 +229,9 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         }
 
         full_text = " ".join(
-                c.get("text", "") if isinstance(c, dict) else getattr(c, "text", "")
-                for c in contract.clauses
-            ).lower()
+            c.get("text", "") if isinstance(c, dict) else getattr(c, "text", "")
+            for c in contract.clauses
+        ).lower()
         for keyword, description in risk_keywords.items():
             if keyword in full_text:
                 contract.risk_flags.append(description)
@@ -239,7 +247,10 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         """
         text = chunk["text"]
         title = "Contract"
-        title_match = re.search(r"(?i)(?:agreement|contract|mou|nda|lease|service\s+order)[:\s]*([A-Z][A-Za-z\s]+)", text)
+        title_match = re.search(
+            r"(?i)(?:agreement|contract|mou|nda|lease|service\s+order)[:\s]*([A-Z][A-Za-z\s]+)",
+            text,
+        )
         if title_match:
             title = title_match.group(1).strip()
 

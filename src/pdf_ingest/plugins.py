@@ -1,4 +1,5 @@
 """Custom extractor plugin system for pdf-ingest."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -14,6 +15,7 @@ T = TypeVar("T")
 @dataclass
 class ExtractorResult(Generic[T]):
     """Result from an extractor plugin."""
+
     items: list[T]
     errors: list[str]
     metadata: dict[str, Any]
@@ -143,9 +145,11 @@ def register_extractor(name: str):
         class MyExtractor(ExtractorPlugin[MyType]):
             ...
     """
+
     def decorator(cls: type[ExtractorPlugin]) -> type[ExtractorPlugin]:
         PluginRegistry.register(name, cls)
         return cls
+
     return decorator
 
 

@@ -17,6 +17,7 @@ Example:
         print(f"[{r.id}] page {r.page} score={r.score:.3f} ({r.source})")
         print(r.text[:200])
 """
+
 from __future__ import annotations
 
 import re
@@ -46,6 +47,7 @@ class SearchResult:
         score: Relevance score (0-1 for vector, BM25 score for keyword)
         source: "vector" or "keyword" indicating search method
     """
+
     id: str
     text: str
     page: int
@@ -82,7 +84,9 @@ class HybridSearcher:
         """Build BM25 index from all stored chunks."""
         if self.store.count == 0:
             return
-        all_results = self.store.search(np.zeros(self.store.dimension, dtype=np.float32), self.store.count)
+        all_results = self.store.search(
+            np.zeros(self.store.dimension, dtype=np.float32), self.store.count
+        )
         self._metadata = [meta for _, meta in all_results]
         self._corpus = [self._tokenize(meta["text"]) for meta in self._metadata]
         self._bm25 = BM25Okapi(self._corpus)
@@ -126,14 +130,16 @@ class HybridSearcher:
         results: list[SearchResult] = []
         for score, meta in vector_results:
             if score >= threshold:
-                results.append(SearchResult(
-                    id=meta["id"],
-                    text=meta["text"],
-                    page=meta["page"],
-                    chunk=meta["chunk"],
-                    score=score,
-                    source="vector",
-                ))
+                results.append(
+                    SearchResult(
+                        id=meta["id"],
+                        text=meta["text"],
+                        page=meta["page"],
+                        chunk=meta["chunk"],
+                        score=score,
+                        source="vector",
+                    )
+                )
 
         if use_hybrid and self._bm25 and self._metadata:
             bm25_scores = self._bm25.get_scores(self._tokenize(query))
@@ -142,14 +148,16 @@ class HybridSearcher:
                 if bm25_scores[idx] > 0:
                     meta = self._metadata[idx]
                     if not any(r.id == meta["id"] for r in results):
-                        results.append(SearchResult(
-                            id=meta["id"],
-                            text=meta["text"],
-                            page=meta["page"],
-                            chunk=meta["chunk"],
-                            score=float(bm25_scores[idx]),
-                            source="keyword",
-                        ))
+                        results.append(
+                            SearchResult(
+                                id=meta["id"],
+                                text=meta["text"],
+                                page=meta["page"],
+                                chunk=meta["chunk"],
+                                score=float(bm25_scores[idx]),
+                                source="keyword",
+                            )
+                        )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:top_k]
@@ -182,14 +190,16 @@ class HybridSearcher:
         results: list[SearchResult] = []
         for score, meta in vector_results:
             if score >= threshold:
-                results.append(SearchResult(
-                    id=meta["id"],
-                    text=meta["text"],
-                    page=meta["page"],
-                    chunk=meta["chunk"],
-                    score=score,
-                    source="vector",
-                ))
+                results.append(
+                    SearchResult(
+                        id=meta["id"],
+                        text=meta["text"],
+                        page=meta["page"],
+                        chunk=meta["chunk"],
+                        score=score,
+                        source="vector",
+                    )
+                )
 
         if use_hybrid and self._bm25 and self._metadata:
             bm25_scores = self._bm25.get_scores(self._tokenize(query))
@@ -198,14 +208,16 @@ class HybridSearcher:
                 if bm25_scores[idx] > 0:
                     meta = self._metadata[idx]
                     if not any(r.id == meta["id"] for r in results):
-                        results.append(SearchResult(
-                            id=meta["id"],
-                            text=meta["text"],
-                            page=meta["page"],
-                            chunk=meta["chunk"],
-                            score=float(bm25_scores[idx]),
-                            source="keyword",
-                        ))
+                        results.append(
+                            SearchResult(
+                                id=meta["id"],
+                                text=meta["text"],
+                                page=meta["page"],
+                                chunk=meta["chunk"],
+                                score=float(bm25_scores[idx]),
+                                source="keyword",
+                            )
+                        )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:top_k]

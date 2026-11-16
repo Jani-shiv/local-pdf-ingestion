@@ -1,4 +1,5 @@
 """Step 3: turn chunks into vectors with Ollama or local sentence-transformers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -32,10 +33,8 @@ class RetryableError(EmbeddingError):
     """Error that should trigger a retry."""
 
 
-
 class NonRetryableError(EmbeddingError):
     """Error that should not trigger a retry."""
-
 
 
 class LocalEmbedder:
@@ -46,9 +45,12 @@ class LocalEmbedder:
     def _load_model(self) -> None:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             self._model = SentenceTransformer(self.model_name)
 
-    def embed(self, texts: list[str], batch_size: int = 32, show_progress: bool = True) -> np.ndarray:
+    def embed(
+        self, texts: list[str], batch_size: int = 32, show_progress: bool = True
+    ) -> np.ndarray:
         self._load_model()
         return self._model.encode(
             texts,
@@ -144,12 +146,12 @@ async def _embed_batch_async_with_retry(
                 raise RetryableError(
                     f"Could not reach Ollama at {base_url}. Is it running? (try: ollama serve)",
                 ) from exc
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2**attempt)
             continue
         except httpx.TimeoutException as exc:
             if attempt == 2:
                 raise RetryableError(f"Request timed out after {timeout}s") from exc
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2**attempt)
             continue
 
         if response.status_code == 404:
@@ -159,7 +161,7 @@ async def _embed_batch_async_with_retry(
         if response.status_code >= 500:
             if attempt == 2:
                 raise RetryableError(f"Server error: {response.status_code}")
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2**attempt)
             continue
 
         response.raise_for_status()
@@ -194,7 +196,9 @@ def embed_texts(
         raise ValueError("batch_size must be positive")
 
     vectors: list[list[float]] = []
-    for start in tqdm(range(0, len(texts), batch_size), desc="Embedding", disable=len(texts) < batch_size):
+    for start in tqdm(
+        range(0, len(texts), batch_size), desc="Embedding", disable=len(texts) < batch_size
+    ):
         batch = texts[start : start + batch_size]
         try:
             batch_vectors = _embed_batch_with_retry(batch, model, base_url, timeout)

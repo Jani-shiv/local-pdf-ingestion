@@ -6,6 +6,7 @@ This module provides:
 - ChromaStore: ChromaDB-based vector store (persistent, feature-rich)
 - Dataset I/O: JSON serialization for chunks and embeddings
 """
+
 from __future__ import annotations
 
 import json
@@ -102,6 +103,7 @@ class FAISSStore:
         """Load existing index or create new one."""
         try:
             import faiss
+
             if self.index_path.exists() and self.meta_path.exists():
                 self._index = faiss.read_index(str(self.index_path))
                 with open(self.meta_path, "rb") as f:
@@ -120,16 +122,19 @@ class FAISSStore:
             chunks: List of Chunk metadata matching vectors
         """
         import faiss
+
         vectors = vectors.astype(np.float32)
         faiss.normalize_L2(vectors)
         self._index.add(vectors)
         for chunk in chunks:
-            self._metadata.append({
-                "id": chunk["id"],
-                "page": chunk["page"],
-                "chunk": chunk["chunk"],
-                "text": chunk["text"],
-            })
+            self._metadata.append(
+                {
+                    "id": chunk["id"],
+                    "page": chunk["page"],
+                    "chunk": chunk["chunk"],
+                    "text": chunk["text"],
+                }
+            )
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[float, dict]]:
         """Search for similar vectors using cosine similarity.
@@ -142,6 +147,7 @@ class FAISSStore:
             List of (score, metadata) tuples sorted by score descending
         """
         import faiss
+
         query_vector = query_vector.astype(np.float32).reshape(1, -1)
         faiss.normalize_L2(query_vector)
         scores, indices = self._index.search(query_vector, top_k)
@@ -154,6 +160,7 @@ class FAISSStore:
     def save(self) -> None:
         """Persist index and metadata to disk."""
         import faiss
+
         faiss.write_index(self._index, str(self.index_path))
         with open(self.meta_path, "wb") as f:
             pickle.dump(self._metadata, f)
@@ -198,6 +205,7 @@ class ChromaStore:
         try:
             import chromadb
             from chromadb.config import Settings as ChromaSettings
+
             self.client = chromadb.PersistentClient(
                 path=str(self.path),
                 settings=ChromaSettings(anonymized_telemetry=False),
@@ -218,10 +226,13 @@ class ChromaStore:
         """
         ids = [chunk["id"] for chunk in chunks]
         documents = [chunk["text"] for chunk in chunks]
-        metadatas = [{
-            "page": chunk["page"],
-            "chunk": chunk["chunk"],
-        } for chunk in chunks]
+        metadatas = [
+            {
+                "page": chunk["page"],
+                "chunk": chunk["chunk"],
+            }
+            for chunk in chunks
+        ]
         embeddings = vectors.tolist()
         self.collection.add(
             ids=ids,
@@ -246,19 +257,27 @@ class ChromaStore:
         )
         output = []
         if results["ids"] and results["ids"][0]:
-            for _i, (doc_id, doc, metadata, distance) in enumerate(zip(
-                results["ids"][0],
-                results["documents"][0],
-                results["metadatas"][0],
-                results["distances"][0], strict=False,
-            )):
+            for _i, (doc_id, doc, metadata, distance) in enumerate(
+                zip(
+                    results["ids"][0],
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                    strict=False,
+                )
+            ):
                 score = 1.0 - distance
-                output.append((score, {
-                    "id": doc_id,
-                    "text": doc,
-                    "page": metadata["page"],
-                    "chunk": metadata["chunk"],
-                }))
+                output.append(
+                    (
+                        score,
+                        {
+                            "id": doc_id,
+                            "text": doc,
+                            "page": metadata["page"],
+                            "chunk": metadata["chunk"],
+                        },
+                    )
+                )
         return output
 
     def save(self) -> None:
@@ -315,7 +334,9 @@ def save_dataset(
     if len(chunks) != len(vectors):
         raise ValueError("chunks and vectors must have the same length")
 
-    records = [{**chunk, "embedding": vector} for chunk, vector in zip(chunks, vectors, strict=False)]
+    records = [
+        {**chunk, "embedding": vector} for chunk, vector in zip(chunks, vectors, strict=False)
+    ]
     payload = {
         "meta": {
             "source": source,

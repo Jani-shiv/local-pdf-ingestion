@@ -10,6 +10,7 @@ Example:
     for r in recipes:
         print(r.to_markdown())
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ class Ingredient:
         unit: Unit of measure (e.g., "cups", "tbsp", "g")
         notes: Preparation notes (e.g., "sifted", "room temperature")
     """
+
     name: str
     amount: str | None = None
     unit: str | None = None
@@ -54,6 +56,7 @@ class Recipe:
         tags: Category tags (e.g., "dessert", "vegetarian")
         source_page: Source document page number
     """
+
     title: str
     description: str | None = None
     servings: int | None = None
@@ -167,8 +170,8 @@ class RecipeExtractor:
   "tags": ["string"]
 }}
 
-Text (page {chunk['page']}, chunk {chunk['chunk']}):
-{chunk['text'][:3000]}"""
+Text (page {chunk["page"]}, chunk {chunk["chunk"]}):
+{chunk["text"][:3000]}"""
 
         response = self.chat._call_ollama(prompt, stream=False)
         try:
@@ -194,7 +197,11 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         ingredients = []
         for line in text.split("\n"):
             line = line.strip()
-            if re.match(r"^[\d\/\.\-\s]+(?:cup|tbsp|tsp|oz|lb|g|kg|ml|l|pinch|dash|clove)s?\b", line, re.IGNORECASE):
+            if re.match(
+                r"^[\d\/\.\-\s]+(?:cup|tbsp|tsp|oz|lb|g|kg|ml|l|pinch|dash|clove)s?\b",
+                line,
+                re.IGNORECASE,
+            ):
                 ingredients.append(Ingredient(name=line))
 
         instructions = []

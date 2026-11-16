@@ -15,6 +15,7 @@ Example:
     kb = KnowledgeBase("./data/kb")
     response = kb.ask("What are the key findings?")
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -63,6 +64,7 @@ class IngestionResult:
         vector_store_path: Path to vector store
         metadata: Additional metadata (page count, chunk count, etc.)
     """
+
     source: str
     chunks: list[Chunk]
     vectors: np.ndarray
@@ -81,6 +83,7 @@ class BatchIngestionResult:
         results: List of successful IngestionResults
         errors: List of error dicts with file and error message
     """
+
     total_files: int
     successful: int
     failed: int
@@ -195,13 +198,15 @@ class IngestionPipeline:
             vectors = np.array(vectors_list, dtype=np.float32)
             save_vector_store(chunks, vectors, self.vector_store_path)
 
-            results.append(IngestionResult(
-                source=wc.url,
-                chunks=chunks,
-                vectors=vectors,
-                vector_store_path=self.vector_store_path,
-                metadata={"source": wc.url, "title": wc.title, "chunks": len(chunks)},
-            ))
+            results.append(
+                IngestionResult(
+                    source=wc.url,
+                    chunks=chunks,
+                    vectors=vectors,
+                    vector_store_path=self.vector_store_path,
+                    metadata={"source": wc.url, "title": wc.title, "chunks": len(chunks)},
+                )
+            )
         return results
 
     def ingest_office(self, file_path: str | Path) -> IngestionResult:
@@ -255,11 +260,24 @@ class IngestionPipeline:
 
         # Collect all supported files first
         supported_extensions = {
-            ".pdf", ".mp3", ".wav", ".m4a", ".flac", ".ogg",
-            ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp",
+            ".pdf",
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".flac",
+            ".ogg",
+            ".docx",
+            ".xlsx",
+            ".pptx",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".tiff",
+            ".bmp",
         }
         files = [
-            f for f in dir_path.glob(pattern)
+            f
+            for f in dir_path.glob(pattern)
             if f.is_file() and f.suffix.lower() in supported_extensions
         ]
 
@@ -351,6 +369,7 @@ class IngestionPipeline:
             BatchIngestionResult with counts and errors
         """
         with progress_bar(total=len(file_paths), desc=desc, unit="file") as pbar:
+
             def callback(name: str, current: int, total: int) -> None:
                 pbar.set_description(f"{desc} {name}")
 
@@ -381,6 +400,7 @@ class KnowledgeBase:
         if dimension is None:
             try:
                 import faiss
+
                 index_path = self.vector_store_path / "faiss.index"
                 if index_path.exists():
                     index = faiss.read_index(str(index_path))
@@ -458,7 +478,11 @@ class KnowledgeBase:
         # Get all chunks from store
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         return self.summarizer.summarize_all(chunks, **kwargs)
 
     def generate_study_guide(self, format: str = "flashcards", **kwargs) -> dict:
@@ -475,7 +499,11 @@ class KnowledgeBase:
             self.initialize_summarizer()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         return self.summarizer.generate_study_guide(chunks, format, **kwargs)
 
     def extract_recipes(self) -> list[Recipe]:
@@ -488,7 +516,11 @@ class KnowledgeBase:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         extractor = RecipeExtractor(self.chat)
         return extractor.extract(chunks)
 
@@ -502,7 +534,11 @@ class KnowledgeBase:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         extractor = InvoiceExtractor(self.chat)
         return extractor.extract(chunks)
 
@@ -516,7 +552,11 @@ class KnowledgeBase:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         extractor = MedicalExtractor(self.chat)
         return extractor.extract(chunks)
 
@@ -530,7 +570,11 @@ class KnowledgeBase:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         extractor = ContractExtractor(self.chat)
         return extractor.extract(chunks)
 
@@ -544,7 +588,11 @@ class KnowledgeBase:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
         from .chunk import Chunk
-        chunks = [Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"]) for _, m in all_results]
+
+        chunks = [
+            Chunk(id=m["id"], page=m["page"], chunk=m["chunk"], text=m["text"])
+            for _, m in all_results
+        ]
         extractor = StudyExtractor(self.chat)
         return extractor.extract(chunks)
 

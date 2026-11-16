@@ -21,13 +21,16 @@ from pdf_ingest import (
 
 # ===== Existing tests =====
 
+
 @pytest.fixture
 def sample_pdf(tmp_path):
     import pymupdf
 
     path = tmp_path / "t.pdf"
     doc = pymupdf.open()
-    doc.new_page().insert_textbox(pymupdf.Rect(72, 72, 523, 700), "alpha beta gamma. " * 120, fontsize=11)
+    doc.new_page().insert_textbox(
+        pymupdf.Rect(72, 72, 523, 700), "alpha beta gamma. " * 120, fontsize=11
+    )
     doc.new_page()  # blank page: should be skipped
     doc.save(path)
     return path
@@ -70,6 +73,7 @@ def test_chunk_pages_ids_and_metadata() -> None:
 
 # ===== New chunking tests =====
 
+
 def test_split_text_semantic() -> None:
     text = "This is sentence one. This is sentence two. This is sentence three. " * 50
     chunks = split_text(text, chunk_size=500, overlap=50, strategy="semantic")
@@ -87,6 +91,7 @@ def test_split_text_recursive() -> None:
 
 # ===== Embedding tests =====
 
+
 class FakeResponse:
     def __init__(self, n, status=200) -> None:
         self.status_code = status
@@ -102,6 +107,7 @@ class FakeResponse:
 
 def test_embed_batches(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
+
     calls = []
 
     def fake_post(url, json, timeout):
@@ -116,6 +122,7 @@ def test_embed_batches(monkeypatch) -> None:
 
 def test_embed_model_missing(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
+
     monkeypatch.setattr(embed_mod.requests, "post", lambda *a, **k: FakeResponse(0, 404))
     with pytest.raises(embed_mod.EmbeddingError, match="ollama pull"):
         embed_mod.embed_texts(["t"])
@@ -123,6 +130,7 @@ def test_embed_model_missing(monkeypatch) -> None:
 
 def test_embed_connection_error(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
+
     def boom(*a, **k) -> NoReturn:
         raise embed_mod.requests.ConnectionError()
 
@@ -133,10 +141,12 @@ def test_embed_connection_error(monkeypatch) -> None:
 
 # ===== Store tests =====
 
+
 def test_save_and_load_roundtrip(tmp_path) -> None:
     chunks = chunk_pages([{"page": 1, "text": "hello world"}])
-    out = save_dataset(tmp_path / "o.json", "t.pdf", chunks, [[0.1, 0.2]],
-                       model="m", chunk_size=1000, overlap=150)
+    out = save_dataset(
+        tmp_path / "o.json", "t.pdf", chunks, [[0.1, 0.2]], model="m", chunk_size=1000, overlap=150
+    )
     data = load_dataset(out)
     assert data["meta"]["dimensions"] == 2
     assert data["chunks"][0]["embedding"] == [0.1, 0.2]
@@ -145,11 +155,19 @@ def test_save_and_load_roundtrip(tmp_path) -> None:
 
 def test_save_length_mismatch(tmp_path) -> None:
     with pytest.raises(ValueError):
-        save_dataset(tmp_path / "o.json", "t", [{"id": "a", "page": 1, "chunk": 0, "text": "x"}], [],
-                     model="m", chunk_size=10, overlap=1)
+        save_dataset(
+            tmp_path / "o.json",
+            "t",
+            [{"id": "a", "page": 1, "chunk": 0, "text": "x"}],
+            [],
+            model="m",
+            chunk_size=10,
+            overlap=1,
+        )
 
 
 # ===== Vector store tests =====
+
 
 def test_faiss_store_add_search(tmp_path) -> None:
     import numpy as np
@@ -194,6 +212,7 @@ def test_faiss_store_persistence(tmp_path) -> None:
 
 # ===== Search tests =====
 
+
 def test_hybrid_search(tmp_path, monkeypatch) -> None:
     import sys
 
@@ -203,11 +222,14 @@ def test_hybrid_search(tmp_path, monkeypatch) -> None:
     from pdf_ingest.store import FAISSStore
 
     store = FAISSStore(tmp_path / "faiss", dimension=3)
-    vectors = np.array([
-        [1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, 0.0, 1.0],
-    ], dtype=np.float32)
+    vectors = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
     chunks = [
         Chunk(id="c1", page=1, chunk=0, text="apple banana"),
         Chunk(id="c2", page=1, chunk=1, text="banana cherry"),
@@ -228,6 +250,7 @@ def test_hybrid_search(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(search_module, "embed_query", mock_embed)
 
     from pdf_ingest.search import HybridSearcher
+
     searcher = HybridSearcher(tmp_path / "faiss", dimension=3)
     results = searcher.search("apple", top_k=2)
     assert len(results) > 0
@@ -235,6 +258,7 @@ def test_hybrid_search(tmp_path, monkeypatch) -> None:
 
 
 # ===== Pipeline tests =====
+
 
 def test_ingestion_pipeline_pdf(tmp_path, sample_pdf, monkeypatch) -> None:
     pl = IngestionPipeline(vector_store_path=tmp_path / "vs", chunk_size=500, overlap=50)
@@ -273,6 +297,7 @@ def test_knowledge_base_ask(tmp_path, sample_pdf, monkeypatch) -> None:
 
 # ===== Domain extractor tests =====
 
+
 def test_recipe_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
     from pdf_ingest.specialize import RecipeExtractor
@@ -280,21 +305,25 @@ def test_recipe_extractor(tmp_path, monkeypatch) -> None:
     # Mock chat
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
-            return json.dumps({
-                "title": "Test Recipe",
-                "description": "A test recipe",
-                "servings": 4,
-                "prep_time_minutes": 10,
-                "cook_time_minutes": 20,
-                "ingredients": [{"name": "flour", "amount": "2", "unit": "cups", "notes": ""}],
-                "instructions": ["Mix", "Bake"],
-                "nutrition": {"calories": "200"},
-                "tags": ["dessert"],
-            })
+            return json.dumps(
+                {
+                    "title": "Test Recipe",
+                    "description": "A test recipe",
+                    "servings": 4,
+                    "prep_time_minutes": 10,
+                    "cook_time_minutes": 20,
+                    "ingredients": [{"name": "flour", "amount": "2", "unit": "cups", "notes": ""}],
+                    "instructions": ["Mix", "Bake"],
+                    "nutrition": {"calories": "200"},
+                    "tags": ["dessert"],
+                }
+            )
 
     mock_chat = MockChat()
     extractor = RecipeExtractor(mock_chat)
-    chunks = [Chunk(id="p1-c0", page=1, chunk=0, text="Recipe: Test Cake\n2 cups flour\nMix and bake")]
+    chunks = [
+        Chunk(id="p1-c0", page=1, chunk=0, text="Recipe: Test Cake\n2 cups flour\nMix and bake")
+    ]
     recipes = extractor.extract(chunks)
 
     assert len(recipes) == 1
@@ -308,13 +337,22 @@ def test_invoice_extractor(tmp_path, monkeypatch) -> None:
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
-            return json.dumps({
-                "vendor": "Test Corp",
-                "invoice_number": "INV-001",
-                "date": "2024-01-15",
-                "total": 100.50,
-                "line_items": [{"description": "Service", "quantity": 1, "unit_price": 100.50, "total": 100.50}],
-            })
+            return json.dumps(
+                {
+                    "vendor": "Test Corp",
+                    "invoice_number": "INV-001",
+                    "date": "2024-01-15",
+                    "total": 100.50,
+                    "line_items": [
+                        {
+                            "description": "Service",
+                            "quantity": 1,
+                            "unit_price": 100.50,
+                            "total": 100.50,
+                        }
+                    ],
+                }
+            )
 
     extractor = InvoiceExtractor(MockChat())
     chunks = [Chunk(id="p1-c0", page=1, chunk=0, text="Invoice from Test Corp\nTotal: $100.50")]
@@ -331,15 +369,27 @@ def test_medical_extractor(tmp_path, monkeypatch) -> None:
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
-            return json.dumps({
-                "patient_name": "John Doe",
-                "report_date": "2024-01-15",
-                "summary": "Normal blood work",
-                "lab_values": [{"name": "Glucose", "value": "95", "unit": "mg/dL", "reference_range": "70-100", "status": "normal"}],
-            })
+            return json.dumps(
+                {
+                    "patient_name": "John Doe",
+                    "report_date": "2024-01-15",
+                    "summary": "Normal blood work",
+                    "lab_values": [
+                        {
+                            "name": "Glucose",
+                            "value": "95",
+                            "unit": "mg/dL",
+                            "reference_range": "70-100",
+                            "status": "normal",
+                        }
+                    ],
+                }
+            )
 
     extractor = MedicalExtractor(MockChat())
-    chunks = [Chunk(id="p1-c0", page=1, chunk=0, text="Patient: John Doe\nGlucose: 95 mg/dL (70-100)")]
+    chunks = [
+        Chunk(id="p1-c0", page=1, chunk=0, text="Patient: John Doe\nGlucose: 95 mg/dL (70-100)")
+    ]
     reports = extractor.extract(chunks)
 
     assert len(reports) == 1
@@ -352,15 +402,26 @@ def test_contract_extractor(tmp_path, monkeypatch) -> None:
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
-            return json.dumps({
-                "title": "Service Agreement",
-                "parties": ["Company A", "Company B"],
-                "contract_type": "service",
-                "clauses": [{"title": "Payment", "text": "Net 30", "category": "payment", "risk_level": "low"}],
-            })
+            return json.dumps(
+                {
+                    "title": "Service Agreement",
+                    "parties": ["Company A", "Company B"],
+                    "contract_type": "service",
+                    "clauses": [
+                        {
+                            "title": "Payment",
+                            "text": "Net 30",
+                            "category": "payment",
+                            "risk_level": "low",
+                        }
+                    ],
+                }
+            )
 
     extractor = ContractExtractor(MockChat())
-    chunks = [Chunk(id="p1-c0", page=1, chunk=0, text="Service Agreement between Company A and Company B")]
+    chunks = [
+        Chunk(id="p1-c0", page=1, chunk=0, text="Service Agreement between Company A and Company B")
+    ]
     contracts = extractor.extract(chunks)
 
     assert len(contracts) == 1
@@ -373,15 +434,35 @@ def test_study_extractor(tmp_path, monkeypatch) -> None:
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
-            return json.dumps({
-                "title": "Biology Notes",
-                "summary": "Cell structure overview",
-                "topics": ["cells", "organelles"],
-                "flashcards": [{"question": "What is a cell?", "answer": "Basic unit of life", "topic": "cells", "difficulty": "easy"}],
-                "quiz_questions": [{"question": "What is a cell?", "options": ["A", "B", "C", "D"], "correct_index": 0, "explanation": "Cells are basic units", "topic": "cells"}],
-                "mind_map": {"topic": "Biology", "children": [{"topic": "Cells", "children": []}]},
-                "key_concepts": {"cell": "basic unit of life"},
-            })
+            return json.dumps(
+                {
+                    "title": "Biology Notes",
+                    "summary": "Cell structure overview",
+                    "topics": ["cells", "organelles"],
+                    "flashcards": [
+                        {
+                            "question": "What is a cell?",
+                            "answer": "Basic unit of life",
+                            "topic": "cells",
+                            "difficulty": "easy",
+                        }
+                    ],
+                    "quiz_questions": [
+                        {
+                            "question": "What is a cell?",
+                            "options": ["A", "B", "C", "D"],
+                            "correct_index": 0,
+                            "explanation": "Cells are basic units",
+                            "topic": "cells",
+                        }
+                    ],
+                    "mind_map": {
+                        "topic": "Biology",
+                        "children": [{"topic": "Cells", "children": []}],
+                    },
+                    "key_concepts": {"cell": "basic unit of life"},
+                }
+            )
 
     extractor = StudyExtractor(MockChat())
     chunks = [Chunk(id="p1-c0", page=1, chunk=0, text="Cells are the basic unit of life...")]
@@ -394,6 +475,7 @@ def test_study_extractor(tmp_path, monkeypatch) -> None:
 
 # ===== Settings tests =====
 
+
 def test_settings_defaults() -> None:
     assert settings.chunk_size == 1000
     assert settings.chunk_overlap == 150
@@ -402,6 +484,7 @@ def test_settings_defaults() -> None:
 
 
 # ===== Integration test =====
+
 
 def test_full_pipeline_cli(tmp_path, sample_pdf, monkeypatch, capsys) -> None:
     """Test the full pipeline via CLI."""
@@ -413,14 +496,16 @@ def test_full_pipeline_cli(tmp_path, sample_pdf, monkeypatch, capsys) -> None:
         def __init__(self, n=1) -> None:
             self.status_code = 200
             self._n = n
+
         def raise_for_status(self) -> None:
             pass
+
         def json(self):
             return {"embeddings": [[0.1] * 768 for _ in range(self._n)]}
 
     def mock_post(*args, **kwargs):
-        json_data = kwargs.get('json', {})
-        n = len(json_data.get('input', []))
+        json_data = kwargs.get("json", {})
+        n = len(json_data.get("input", []))
         return FakeResponse(n)
 
     monkeypatch.setattr(embed_mod.requests, "post", mock_post)

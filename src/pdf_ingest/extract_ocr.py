@@ -1,4 +1,5 @@
 """OCR extraction for scanned PDFs and images using Tesseract or PaddleOCR."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -50,10 +51,13 @@ class OCRExtractor:
             try:
                 pytesseract.get_tesseract_version()
             except Exception as exc:
-                raise RuntimeError("Tesseract not found. Install: https://github.com/tesseract-ocr/tesseract") from exc
+                raise RuntimeError(
+                    "Tesseract not found. Install: https://github.com/tesseract-ocr/tesseract"
+                ) from exc
 
     def extract_pdf(self, pdf_path: str | Path) -> Generator[OCRResult, None, None]:
         import pymupdf
+
         doc = pymupdf.open(pdf_path)
         for page_num, page in enumerate(doc, start=1):
             pix = page.get_pixmap(dpi=200)
@@ -75,7 +79,9 @@ class OCRExtractor:
             confidences = [c for c, t in zip(data["conf"], data["text"], strict=False) if t.strip()]
             avg_conf = sum(confidences) / len(confidences) if confidences else 0
             text = " ".join(texts)
-            yield OCRResult(page=page, text=text, confidence=avg_conf / 100, language=self.languages)
+            yield OCRResult(
+                page=page, text=text, confidence=avg_conf / 100, language=self.languages
+            )
 
         elif self.engine == "paddle":
             result = self.paddle.ocr(img, cls=True)

@@ -10,6 +10,7 @@ Features:
 - Sync and async interfaces
 - Configurable LLM parameters
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ class ChatMessage:
         role: Message role ("user" or "assistant")
         content: Message text content
     """
+
     role: str
     content: str
 
@@ -48,6 +50,7 @@ class ChatResponse:
         sources: List of source SearchResults used for answer
         model: LLM model name used
     """
+
     content: str
     sources: list[SearchResult]
     model: str
@@ -111,7 +114,7 @@ class RAGChat:
         """
         parts = []
         for i, r in enumerate(results):
-            parts.append(f"[Source {i+1}] (page {r.page}, chunk {r.chunk}):\n{r.text}\n")
+            parts.append(f"[Source {i + 1}] (page {r.page}, chunk {r.chunk}):\n{r.text}\n")
         return "\n".join(parts)
 
     def _build_prompt(self, query: str, context: str) -> str:
@@ -157,10 +160,14 @@ class RAGChat:
             )
             response.raise_for_status()
         except requests.ConnectionError as exc:
-            raise RuntimeError(f"Could not reach Ollama at {self.base_url}. Is it running?") from exc
+            raise RuntimeError(
+                f"Could not reach Ollama at {self.base_url}. Is it running?"
+            ) from exc
         except requests.HTTPError as exc:
             if response.status_code == 404:
-                raise RuntimeError(f"Model '{self.model}' not found. Run: ollama pull {self.model}") from exc
+                raise RuntimeError(
+                    f"Model '{self.model}' not found. Run: ollama pull {self.model}"
+                ) from exc
             raise
 
         if stream:
@@ -208,7 +215,9 @@ class RAGChat:
                 return
 
         try:
-            async with client.stream("POST", f"{self.base_url}/api/generate", json=payload) as response:
+            async with client.stream(
+                "POST", f"{self.base_url}/api/generate", json=payload
+            ) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line:
@@ -221,10 +230,14 @@ class RAGChat:
                         except json.JSONDecodeError:
                             continue
         except httpx.ConnectError as exc:
-            raise RuntimeError(f"Could not reach Ollama at {self.base_url}. Is it running?") from exc
+            raise RuntimeError(
+                f"Could not reach Ollama at {self.base_url}. Is it running?"
+            ) from exc
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
-                raise RuntimeError(f"Model '{self.model}' not found. Run: ollama pull {self.model}") from exc
+                raise RuntimeError(
+                    f"Model '{self.model}' not found. Run: ollama pull {self.model}"
+                ) from exc
             raise
 
     async def _call_ollama_async_non_stream(
@@ -260,10 +273,14 @@ class RAGChat:
             response.raise_for_status()
             return response.json().get("response", "")
         except httpx.ConnectError as exc:
-            raise RuntimeError(f"Could not reach Ollama at {self.base_url}. Is it running?") from exc
+            raise RuntimeError(
+                f"Could not reach Ollama at {self.base_url}. Is it running?"
+            ) from exc
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
-                raise RuntimeError(f"Model '{self.model}' not found. Run: ollama pull {self.model}") from exc
+                raise RuntimeError(
+                    f"Model '{self.model}' not found. Run: ollama pull {self.model}"
+                ) from exc
             raise
 
     def chat(self, query: str, top_k: int | None = None) -> ChatResponse:
@@ -322,7 +339,9 @@ class RAGChat:
             model=self.model,
         )
 
-    def chat_stream(self, query: str, top_k: int | None = None) -> Generator[str, None, list[SearchResult]]:
+    def chat_stream(
+        self, query: str, top_k: int | None = None
+    ) -> Generator[str, None, list[SearchResult]]:
         """Streaming chat - yields response tokens.
 
         Args:

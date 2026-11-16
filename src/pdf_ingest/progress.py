@@ -19,6 +19,7 @@ Example:
     for item in track(items, desc="Processing"):
         process(item)
 """
+
 from __future__ import annotations
 
 import sys
@@ -307,7 +308,9 @@ class Spinner:
         "bounce": ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
     }
 
-    def __init__(self, desc: str = "Processing", style: str = "dots", disable: bool = False) -> None:
+    def __init__(
+        self, desc: str = "Processing", style: str = "dots", disable: bool = False
+    ) -> None:
         """Initialize spinner.
 
         Args:

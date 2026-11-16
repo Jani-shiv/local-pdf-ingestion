@@ -1,4 +1,5 @@
 """Generate the original diagrams used in the article (docs/images/*.png)."""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -22,41 +23,63 @@ def canvas(w=12, h=6.2):
 def box(ax, x, y, w, h, text, color, sub=None, fs=14) -> None:
     ax.add_patch(
         FancyBboxPatch(
-            (x, y), w, h,
+            (x, y),
+            w,
+            h,
             boxstyle="round,pad=0.4,rounding_size=2.5",
-            fc=color, ec="none",
+            fc=color,
+            ec="none",
         ),
     )
     ax.text(
-        x + w / 2, y + h / 2 + (3 if sub else 0), text,
-        ha="center", va="center", color="white", fontsize=fs, fontweight="bold",
+        x + w / 2,
+        y + h / 2 + (3 if sub else 0),
+        text,
+        ha="center",
+        va="center",
+        color="white",
+        fontsize=fs,
+        fontweight="bold",
     )
     if sub:
         ax.text(
-            x + w / 2, y + h / 2 - 5, sub,
-            ha="center", va="center", color="white", fontsize=10.5,
+            x + w / 2,
+            y + h / 2 - 5,
+            sub,
+            ha="center",
+            va="center",
+            color="white",
+            fontsize=10.5,
         )
 
 
 def arrow(ax, x1, y1, x2, y2) -> None:
     ax.add_patch(
         FancyArrowPatch(
-            (x1, y1), (x2, y2),
-            arrowstyle="-|>", mutation_scale=18, color=INK, lw=2,
+            (x1, y1),
+            (x2, y2),
+            arrowstyle="-|>",
+            mutation_scale=18,
+            color=INK,
+            lw=2,
         ),
     )
 
 
 def pipeline() -> None:
     fig, ax = canvas()
-    ax.text(50, 92, "PDF ingestion pipeline", ha="center", fontsize=22,
-            fontweight="bold", color=INK)
-    ax.text(50, 84, "Everything runs on your own machine",
-            ha="center", fontsize=13, color="#475569")
+    ax.text(
+        50, 92, "PDF ingestion pipeline", ha="center", fontsize=22, fontweight="bold", color=INK
+    )
+    ax.text(
+        50, 84, "Everything runs on your own machine", ha="center", fontsize=13, color="#475569"
+    )
     steps = [
-        ("PDF", "documents/*.pdf"), ("Extract", "PyMuPDF"),
+        ("PDF", "documents/*.pdf"),
+        ("Extract", "PyMuPDF"),
         ("Chunk", "1000 chars\n150 overlap"),
-        ("Embed", "Ollama\nnomic-embed-text"), ("Store", "JSON file"),
+        ("Embed", "Ollama\nnomic-embed-text"),
+        ("Store", "JSON file"),
     ]
     w, gap, x = 14.5, 5.5, 2.5
     for i, (t, s) in enumerate(steps):
@@ -65,10 +88,12 @@ def pipeline() -> None:
             arrow(ax, x + w + 0.8, 52, x + w + gap - 0.8, 52)
         x += w + gap
     ax.text(
-        50, 22,
-        "This article builds the knowledge layer."
-        " Search and chat come in the next article.",
-        ha="center", fontsize=12, color="#475569",
+        50,
+        22,
+        "This article builds the knowledge layer. Search and chat come in the next article.",
+        ha="center",
+        fontsize=12,
+        color="#475569",
     )
     fig.savefig(OUT / "01-pipeline.png", bbox_inches="tight")
     plt.close(fig)
@@ -76,11 +101,17 @@ def pipeline() -> None:
 
 def chunking() -> None:
     fig, ax = canvas(12, 5.6)
-    ax.text(50, 94, "How overlapping chunks work", ha="center", fontsize=22,
-            fontweight="bold", color=INK)
+    ax.text(
+        50,
+        94,
+        "How overlapping chunks work",
+        ha="center",
+        fontsize=22,
+        fontweight="bold",
+        color=INK,
+    )
     ax.add_patch(Rectangle((5, 66), 90, 10, fc="#e2e8f0", ec="none"))
-    ax.text(20, 71, "Page text (one long string)",
-            ha="center", va="center", fontsize=12, color=INK)
+    ax.text(20, 71, "Page text (one long string)", ha="center", va="center", fontsize=12, color=INK)
     spans = [
         (5, 41, "Chunk 0", COLORS[0], 44),
         (35, 71, "Chunk 1", COLORS[1], 28),
@@ -89,8 +120,14 @@ def chunking() -> None:
     for x1, x2, label, c, y in spans:
         ax.add_patch(Rectangle((x1, y), x2 - x1, 10, fc=c, ec="none", alpha=0.92))
         ax.text(
-            (x1 + x2) / 2, y + 5, label,
-            ha="center", va="center", color="white", fontsize=12, fontweight="bold",
+            (x1 + x2) / 2,
+            y + 5,
+            label,
+            ha="center",
+            va="center",
+            color="white",
+            fontsize=12,
+            fontweight="bold",
         )
     for x1, x2 in [(35, 41), (65, 71)]:
         ax.add_patch(
@@ -104,8 +141,15 @@ def chunking() -> None:
 
 def embeddings() -> None:
     fig, ax = canvas(12, 6)
-    ax.text(50, 94, "Different words, similar meaning", ha="center", fontsize=22,
-            fontweight="bold", color=INK)
+    ax.text(
+        50,
+        94,
+        "Different words, similar meaning",
+        ha="center",
+        fontsize=22,
+        fontweight="bold",
+        color=INK,
+    )
     texts = [
         "How do I restart a Kubernetes pod?",
         "Steps to recreate a failed pod",
@@ -118,14 +162,21 @@ def embeddings() -> None:
         box(ax, 3, y, 44, 14, t, c, fs=12)
         arrow(ax, 48, y + 7, 56, y + 7)
         ax.text(
-            57, y + 7,
+            57,
+            y + 7,
             "[" + ", ".join(f"{n:.2f}" for n in v) + ", ...]",
-            va="center", fontsize=13, family="monospace", color=INK,
+            va="center",
+            fontsize=13,
+            family="monospace",
+            color=INK,
         )
     ax.text(
-        50, 6,
+        50,
+        6,
         "Illustrative numbers only. Real nomic-embed-text vectors are much longer.",
-        ha="center", fontsize=11, color="#475569",
+        ha="center",
+        fontsize=11,
+        color="#475569",
     )
     fig.savefig(OUT / "03-embeddings-concept.png", bbox_inches="tight")
     plt.close(fig)
@@ -139,9 +190,11 @@ def cover() -> None:
     ax.text(6, 63, "searchable knowledge", fontsize=36, fontweight="bold", color="#60a5fa")
     ax.text(6, 48, "for your local AI", fontsize=36, fontweight="bold", color="white")
     ax.text(
-        6, 30,
+        6,
+        30,
         "Python + PyMuPDF + Ollama  |  Step 1 of a local RAG series",
-        fontsize=15, color="#cbd5e1",
+        fontsize=15,
+        color="#cbd5e1",
     )
     ax.text(6, 14, "Shiv Jani", fontsize=18, fontweight="bold", color="#facc15")
     for i, c in enumerate(COLORS):

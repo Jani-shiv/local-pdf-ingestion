@@ -1,4 +1,5 @@
 """Web content extraction using trafilatura."""
+
 from __future__ import annotations
 
 import contextlib
@@ -23,9 +24,11 @@ class WebExtractor:
     def __init__(self, timeout: int = 30) -> None:
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; pdf-ingest/0.2; +https://github.com/Jani-shiv/local-pdf-ingestion)",
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (compatible; pdf-ingest/0.2; +https://github.com/Jani-shiv/local-pdf-ingestion)",
+            }
+        )
 
     def extract(self, url: str) -> WebContent:
         downloaded = trafilatura.fetch_url(url, timeout=self.timeout)
@@ -44,6 +47,7 @@ class WebExtractor:
             raise ValueError(f"Failed to extract content from: {url}")
 
         import json
+
         data = json.loads(extracted)
 
         domain = urlparse(url).netloc

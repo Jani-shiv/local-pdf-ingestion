@@ -14,6 +14,7 @@ Example:
     with LogContext(logger, request_id="abc123"):
         logger.info("Processing request")
 """
+
 from __future__ import annotations
 
 import json
@@ -68,12 +69,12 @@ class ColoredFormatter(logging.Formatter):
     """
 
     COLORS: ClassVar[dict[str, str]] = {
-        "DEBUG": "\033[36m",    # Cyan
-        "INFO": "\033[32m",     # Green
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
         "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",    # Red
-        "CRITICAL": "\033[35m", # Magenta
-        "RESET": "\033[0m",     # Reset
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+        "RESET": "\033[0m",  # Reset
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -189,7 +190,13 @@ def setup_logging(
 
     logging.getLogger("pdf_ingest").info(
         "Logging configured",
-        extra={"extra_fields": {"level": level, "json_logs": use_json, "log_file": str(file_path) if file_path else None}},
+        extra={
+            "extra_fields": {
+                "level": level,
+                "json_logs": use_json,
+                "log_file": str(file_path) if file_path else None,
+            }
+        },
     )
 
 

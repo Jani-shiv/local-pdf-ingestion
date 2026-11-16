@@ -10,6 +10,7 @@ Example:
     for r in reports:
         print(r.to_markdown())
 """
+
 from __future__ import annotations
 
 import json
@@ -34,6 +35,7 @@ class LabValue:
         status: "normal", "high", "low", or "critical"
         flag: True if outside normal range
     """
+
     name: str
     value: str
     unit: str | None = None
@@ -59,6 +61,7 @@ class MedicalReport:
         flagged_items: Items requiring attention
         source_page: Source document page number
     """
+
     patient_name: str | None = None
     report_date: str | None = None
     provider: str | None = None
@@ -100,7 +103,9 @@ class MedicalReport:
             lines.append("|---|---:|---|---|---:|")
             for lv in self.lab_values:
                 flag = " ⚠️" if lv.flag else ""
-                lines.append(f"| {lv.name} | {lv.value} | {lv.unit or ''} | {lv.reference_range or ''} | {lv.status or ''}{flag} |")
+                lines.append(
+                    f"| {lv.name} | {lv.value} | {lv.unit or ''} | {lv.reference_range or ''} | {lv.status or ''}{flag} |"
+                )
 
         if self.diagnoses:
             lines.append("\n## Diagnoses")
@@ -122,7 +127,9 @@ class MedicalReport:
             for f in self.flagged_items:
                 lines.append(f"- {f}")
 
-        lines.append("\n---\n*Disclaimer: This is an AI-generated summary. Always consult your healthcare provider for medical advice.*")
+        lines.append(
+            "\n---\n*Disclaimer: This is an AI-generated summary. Always consult your healthcare provider for medical advice.*"
+        )
         return "\n".join(lines)
 
 
@@ -185,8 +192,8 @@ class MedicalExtractor:
   "flagged_items": ["string (values outside normal range or needing follow-up)"]
 }}
 
-Text (page {chunk['page']}, chunk {chunk['chunk']}):
-{chunk['text'][:4000]}"""
+Text (page {chunk["page"]}, chunk {chunk["chunk"]}):
+{chunk["text"][:4000]}"""
 
         response = self.chat._call_ollama(prompt, stream=False)
         try:
@@ -228,13 +235,31 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         pattern = r"([A-Za-z\s]+)\s+(\d+\.?\d*)\s*(\w+)?\s*\(?([\d\.\-\s]+)\)?"
         for match in re.finditer(pattern, text):
             name, value, unit, ref = match.groups()
-            if any(kw in name.lower() for kw in ["glucose", "cholesterol", "hemoglobin", "wbc", "rbc", "platelet", "creatinine", "bun", "alt", "ast", "tsh", "vitamin"]):
-                lab_values.append(LabValue(
-                    name=name.strip(),
-                    value=value,
-                    unit=unit,
-                    reference_range=ref.strip("()") if ref else None,
-                ))
+            if any(
+                kw in name.lower()
+                for kw in [
+                    "glucose",
+                    "cholesterol",
+                    "hemoglobin",
+                    "wbc",
+                    "rbc",
+                    "platelet",
+                    "creatinine",
+                    "bun",
+                    "alt",
+                    "ast",
+                    "tsh",
+                    "vitamin",
+                ]
+            ):
+                lab_values.append(
+                    LabValue(
+                        name=name.strip(),
+                        value=value,
+                        unit=unit,
+                        reference_range=ref.strip("()") if ref else None,
+                    )
+                )
 
         return MedicalReport(
             lab_values=lab_values[:20],

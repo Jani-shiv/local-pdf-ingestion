@@ -14,6 +14,7 @@ Example:
 
     study = summarizer.generate_study_guide(chunks, format="flashcards")
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ class Summary:
         key_points: List of key point strings
         chunks_used: List of chunk IDs used in summary
     """
+
     text: str
     key_points: list[str]
     chunks_used: list[str]
@@ -228,13 +230,13 @@ Key Points:
             )
         elif format == "mindmap":
             prompt = (
-                'Create a hierarchical mind map from this text. Output as nested JSON:\n'
+                "Create a hierarchical mind map from this text. Output as nested JSON:\n"
                 '{"topic": "main", "children": [{"topic": "subtopic", "children": [...]}]}\n\n'
                 f"Text:\n{text_excerpt}"
             )
         elif format == "quiz":
             prompt = (
-                'Create 10 multiple choice questions from this text. Format as JSON:\n'
+                "Create 10 multiple choice questions from this text. Format as JSON:\n"
                 '[{"question": "...", "options": ["A", "B", "C", "D"], "answer": 0, "explanation": "..."}]\n\n'
                 f"Text:\n{text_excerpt}"
             )

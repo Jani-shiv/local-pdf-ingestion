@@ -10,6 +10,7 @@ Example:
     for g in guides:
         print(g.to_anki_csv())
 """
+
 from __future__ import annotations
 
 import json
@@ -31,6 +32,7 @@ class Flashcard:
         topic: Subject topic
         difficulty: "easy", "medium", or "hard"
     """
+
     question: str
     answer: str
     topic: str | None = None
@@ -48,6 +50,7 @@ class QuizQuestion:
         explanation: Explanation of correct answer
         topic: Subject topic
     """
+
     question: str
     options: list[str]
     correct_index: int
@@ -63,6 +66,7 @@ class MindMapNode:
         topic: Node topic/label
         children: Child nodes
     """
+
     topic: str
     children: list[MindMapNode] = field(default_factory=list)
 
@@ -81,6 +85,7 @@ class StudyGuide:
         key_concepts: Dictionary of concept definitions
         source_pages: Source document page numbers
     """
+
     title: str
     summary: str
     topics: list[str] = field(default_factory=list)
@@ -217,8 +222,8 @@ class StudyExtractor:
   "key_concepts": {{"concept": "definition"}}
 }}
 
-Text (page {chunk['page']}, chunk {chunk['chunk']}):
-{chunk['text'][:4000]}"""
+Text (page {chunk["page"]}, chunk {chunk["chunk"]}):
+{chunk["text"][:4000]}"""
 
         response = self.chat._call_ollama(prompt, stream=False)
         try:
@@ -243,10 +248,12 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         flashcards = []
         for i in range(0, min(len(sentences), 10), 2):
             if i + 1 < len(sentences):
-                flashcards.append(Flashcard(
-                    question=f"What is: {sentences[i][:80]}...?",
-                    answer=sentences[i + 1],
-                ))
+                flashcards.append(
+                    Flashcard(
+                        question=f"What is: {sentences[i][:80]}...?",
+                        answer=sentences[i + 1],
+                    )
+                )
 
         return StudyGuide(
             title=f"Study Notes - Page {chunk['page']}",
