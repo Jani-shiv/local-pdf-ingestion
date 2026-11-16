@@ -157,8 +157,16 @@ jobs:
       - name: Test API container
         run: |
           docker run --rm -d --name test-api -p 8000:8000 pdf-ingest-api:latest
-          sleep 10
-          curl -f http://localhost:8000/health || exit 1
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health; then
+              echo "API is ready"
+              break
+            fi
+            echo "Waiting for API... ($i/30)"
+            docker logs test-api 2>&1 | tail -n 10 || true
+            sleep 2
+          done
+          curl -f http://localhost:8000/health || (docker logs test-api && exit 1)
           docker stop test-api
 
   release:

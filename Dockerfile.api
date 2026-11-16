@@ -42,6 +42,8 @@ COPY --from=builder /install /usr/local
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser api/ ./api/
 
+ENV PYTHONPATH=/app/src
+
 # Create directories with proper ownership
 RUN mkdir -p /app/data/vector_store \
     && chown -R appuser:appuser /app/data
