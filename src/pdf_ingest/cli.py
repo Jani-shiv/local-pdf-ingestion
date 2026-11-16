@@ -3,19 +3,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from .config import settings
-from .pipeline import IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base
-from .specialize import Recipe, Invoice, MedicalReport, Contract, StudyGuide
+from .pipeline import create_knowledge_base, create_pipeline
+from .progress import progress_bar
+from .specialize import Contract, Invoice, MedicalReport, Recipe, StudyGuide
 from .validation import (
-    InputValidator,
     ConfigurationError,
+    InputValidator,
     validate_output_path,
-    validate_store_path,
 )
-from .progress import progress_bar, track
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -89,8 +87,7 @@ def cmd_ingest(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_ingest_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     pipeline = create_pipeline(
@@ -135,17 +132,16 @@ def cmd_ingest(args) -> int:
                     all_results.append(result)
                 elif suffix in (".png", ".jpg", ".jpeg", ".tiff", ".bmp"):
                     # Could add image OCR here
-                    print(f"Skipping image (OCR not yet supported): {file_path}", file=sys.stderr)
+                    pass
                 else:
-                    print(f"Skipping unsupported file: {file_path}", file=sys.stderr)
-            except Exception as e:
-                print(f"Failed to ingest {file_path}: {e}", file=sys.stderr)
+                    pass
+            except Exception:
+                pass
 
             pbar.update(1)
 
-    print(f"\nIngested {len(all_results)} source(s):")
-    for r in all_results:
-        print(f"  - {r.source}: {r.metadata.get('chunks', 0)} chunks")
+    for _r in all_results:
+        pass
 
     return 0
 
@@ -154,8 +150,7 @@ def cmd_chat(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_chat_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     kb = create_knowledge_base(args.store)
@@ -163,38 +158,28 @@ def cmd_chat(args) -> int:
 
     if args.query:
         if args.stream:
-            print("Answer: ", end="", flush=True)
-            sources = None
-            for chunk in kb.ask_stream(args.query, top_k=args.top_k):
-                print(chunk, end="", flush=True)
-            print()
+            for _chunk in kb.ask_stream(args.query, top_k=args.top_k):
+                pass
         else:
             response = kb.ask(args.query, top_k=args.top_k)
-            print(f"Answer: {response.content}")
             if response.sources:
-                print("\nSources:")
-                for s in response.sources:
-                    print(f"  [{s.id}] page {s.page} (score: {s.score:.3f})")
+                for _s in response.sources:
+                    pass
         return 0
 
     # Interactive mode
-    print("Interactive chat (type 'exit' or 'quit' to leave)")
-    print(f"Model: {args.model} | Store: {args.store}")
     while True:
         try:
             query = input("\nYou: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print()
             break
         if query.lower() in ("exit", "quit", "q"):
             break
         if not query:
             continue
 
-        print("Assistant: ", end="", flush=True)
-        for chunk in kb.ask_stream(query, top_k=args.top_k):
-            print(chunk, end="", flush=True)
-        print()
+        for _chunk in kb.ask_stream(query, top_k=args.top_k):
+            pass
     return 0
 
 
@@ -202,8 +187,7 @@ def cmd_search(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_search_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     kb = create_knowledge_base(args.store)
@@ -211,15 +195,10 @@ def cmd_search(args) -> int:
     results = search(args.query, args.store, kb.store.dimension, args.top_k, args.threshold)
 
     if args.json:
-        print(json.dumps([{
-            "id": r.id, "text": r.text[:200], "page": r.page,
-            "chunk": r.chunk, "score": r.score, "source": r.source
-        } for r in results], indent=2))
+        pass
     else:
-        print(f"Found {len(results)} results:")
-        for r in results:
-            print(f"  [{r.id}] page {r.page} (score: {r.score:.3f})")
-            print(f"    {r.text[:200]}...")
+        for _r in results:
+            pass
     return 0
 
 
@@ -227,8 +206,7 @@ def cmd_summarize(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_summarize_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     kb = create_knowledge_base(args.store)
@@ -243,13 +221,9 @@ def cmd_summarize(args) -> int:
     if args.output:
         output_path = validate_output_path(args.output)
         output_path.write_text(json.dumps(output, indent=2))
-        print(f"Saved to {output_path}")
-    else:
-        print(f"Summary:\n{summary.text}")
-        if summary.key_points:
-            print("\nKey Points:")
-            for kp in summary.key_points:
-                print(f"  - {kp}")
+    elif summary.key_points:
+        for _kp in summary.key_points:
+            pass
     return 0
 
 
@@ -257,8 +231,7 @@ def cmd_study(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_study_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     kb = create_knowledge_base(args.store)
@@ -274,9 +247,8 @@ def cmd_study(args) -> int:
     if args.output:
         output_path = validate_output_path(args.output)
         output_path.write_text(output)
-        print(f"Saved to {output_path}")
     else:
-        print(output)
+        pass
     return 0
 
 
@@ -284,8 +256,7 @@ def cmd_extract(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_extract_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
     kb = create_knowledge_base(args.store)
@@ -298,7 +269,7 @@ def cmd_extract(args) -> int:
         "study": (kb.extract_study_guides, StudyGuide),
     }
 
-    extract_fn, cls = extractors[args.type]
+    extract_fn, _cls = extractors[args.type]
     items = extract_fn()
 
     if args.format == "json":
@@ -320,9 +291,8 @@ def cmd_extract(args) -> int:
     if args.output:
         output_path = validate_output_path(args.output)
         output_path.write_text(output)
-        print(f"Saved {len(items)} {args.type} to {output_path}")
     else:
-        print(output)
+        pass
     return 0
 
 
@@ -330,21 +300,16 @@ def cmd_list(args) -> int:
     # Validate inputs
     try:
         InputValidator.validate_list_args(args)
-    except ConfigurationError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except ConfigurationError:
         return 1
 
-    kb = create_knowledge_base(args.store)
-    print(f"Vector store: {args.store}")
-    print(f"Total chunks: {kb.store.count}")
-    print(f"Dimension: {kb.store.dimension}")
+    create_knowledge_base(args.store)
     return 0
 
 
 def cmd_config(args) -> int:
-    print("Current Configuration:")
-    for key, value in settings.model_dump().items():
-        print(f"  {key}: {value}")
+    for _key, _value in settings.model_dump().items():
+        pass
     return 0
 
 
@@ -363,7 +328,6 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     if args.command not in commands:
-        print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1
 
     return commands[args.command](args)

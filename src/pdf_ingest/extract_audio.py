@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from pathlib import Path
 
 try:
     from faster_whisper import WhisperModel
@@ -25,7 +28,7 @@ class AudioExtractor:
         model_size: str = "base",
         device: str = "auto",
         compute_type: str = "auto",
-    ):
+    ) -> None:
         if WhisperModel is None:
             raise RuntimeError("faster-whisper not installed. Run: pip install faster-whisper")
         self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
@@ -36,7 +39,7 @@ class AudioExtractor:
         language: str | None = None,
         vad_filter: bool = True,
     ) -> Generator[AudioSegment, None, None]:
-        segments, info = self.model.transcribe(
+        segments, _info = self.model.transcribe(
             str(audio_path),
             language=language,
             vad_filter=vad_filter,

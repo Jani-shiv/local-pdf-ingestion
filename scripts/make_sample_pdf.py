@@ -28,7 +28,6 @@ def main() -> None:
         page.insert_text((72, 72), title, fontsize=16)
         page.insert_textbox(pymupdf.Rect(72, 100, 523, 770), body, fontsize=11)
     doc.save(out)
-    print(f"Wrote {out}")
 
 
 if __name__ == "__main__":

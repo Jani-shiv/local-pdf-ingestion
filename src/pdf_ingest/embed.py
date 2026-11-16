@@ -2,22 +2,21 @@
 from __future__ import annotations
 
 import asyncio
-import time
-import httpx
-import requests
-import numpy as np
-from tqdm import tqdm
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
 import logging
 
-from .config import settings
+import httpx
+import numpy as np
+import requests
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+from tqdm import tqdm
 
+from .config import settings
 
 DEFAULT_URL = "http://localhost:11434"
 DEFAULT_MODEL = "nomic-embed-text"
@@ -32,35 +31,32 @@ class EmbeddingError(RuntimeError):
 class RetryableError(EmbeddingError):
     """Error that should trigger a retry."""
 
-    pass
 
 
 class NonRetryableError(EmbeddingError):
     """Error that should not trigger a retry."""
 
-    pass
 
 
 class LocalEmbedder:
-    def __init__(self, model_name: str | None = None):
+    def __init__(self, model_name: str | None = None) -> None:
         self.model_name = model_name or settings.local_embed_model
         self._model = None
 
-    def _load_model(self):
+    def _load_model(self) -> None:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(self.model_name)
 
     def embed(self, texts: list[str], batch_size: int = 32, show_progress: bool = True) -> np.ndarray:
         self._load_model()
-        embeddings = self._model.encode(
+        return self._model.encode(
             texts,
             batch_size=batch_size,
             show_progress_bar=show_progress,
             convert_to_numpy=True,
             normalize_embeddings=True,
         )
-        return embeddings
 
     async def embed_async(
         self,
@@ -107,14 +103,14 @@ def _embed_batch_with_retry(
         )
     except requests.ConnectionError as exc:
         raise RetryableError(
-            f"Could not reach Ollama at {base_url}. Is it running? (try: ollama serve)"
+            f"Could not reach Ollama at {base_url}. Is it running? (try: ollama serve)",
         ) from exc
     except requests.Timeout as exc:
         raise RetryableError(f"Request timed out after {timeout}s") from exc
 
     if response.status_code == 404:
         raise NonRetryableError(
-            f"Model '{model}' not found. Run: ollama pull {model}"
+            f"Model '{model}' not found. Run: ollama pull {model}",
         )
     if response.status_code >= 500:
         raise RetryableError(f"Server error: {response.status_code}")
@@ -123,7 +119,7 @@ def _embed_batch_with_retry(
     batch_vectors = response.json()["embeddings"]
     if len(batch_vectors) != len(batch):
         raise NonRetryableError(
-            f"Expected {len(batch)} embeddings, got {len(batch_vectors)}"
+            f"Expected {len(batch)} embeddings, got {len(batch_vectors)}",
         )
     return batch_vectors
 
@@ -146,7 +142,7 @@ async def _embed_batch_async_with_retry(
         except httpx.ConnectError as exc:
             if attempt == 2:
                 raise RetryableError(
-                    f"Could not reach Ollama at {base_url}. Is it running? (try: ollama serve)"
+                    f"Could not reach Ollama at {base_url}. Is it running? (try: ollama serve)",
                 ) from exc
             await asyncio.sleep(2 ** attempt)
             continue
@@ -158,7 +154,7 @@ async def _embed_batch_async_with_retry(
 
         if response.status_code == 404:
             raise NonRetryableError(
-                f"Model '{model}' not found. Run: ollama pull {model}"
+                f"Model '{model}' not found. Run: ollama pull {model}",
             )
         if response.status_code >= 500:
             if attempt == 2:
@@ -171,7 +167,7 @@ async def _embed_batch_async_with_retry(
         batch_vectors = response.json()["embeddings"]
         if len(batch_vectors) != len(batch):
             raise NonRetryableError(
-                f"Expected {len(batch)} embeddings, got {len(batch_vectors)}"
+                f"Expected {len(batch)} embeddings, got {len(batch_vectors)}",
             )
         return batch_vectors
 
@@ -204,7 +200,7 @@ def embed_texts(
             batch_vectors = _embed_batch_with_retry(batch, model, base_url, timeout)
             vectors.extend(batch_vectors)
         except RetryableError as exc:
-            log.error(f"Failed to embed batch after retries: {exc}")
+            log.exception(f"Failed to embed batch after retries: {exc}")
             raise EmbeddingError(f"Embedding failed after {max_retries} retries: {exc}") from exc
         except NonRetryableError as exc:
             raise EmbeddingError(str(exc)) from exc

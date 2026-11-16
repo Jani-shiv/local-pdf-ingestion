@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, asdict, field
-from datetime import datetime
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-from ..chat import RAGChat
-from ..chunk import Chunk
+if TYPE_CHECKING:
+    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.chunk import Chunk
 
 
 @dataclass
@@ -33,9 +33,9 @@ class LineItem:
         total: Line total (quantity * unit_price)
     """
     description: str
-    quantity: Optional[float] = None
-    unit_price: Optional[float] = None
-    total: Optional[float] = None
+    quantity: float | None = None
+    unit_price: float | None = None
+    total: float | None = None
 
 
 @dataclass
@@ -57,17 +57,17 @@ class Invoice:
         source_page: Source document page number
     """
     vendor: str
-    invoice_number: Optional[str] = None
-    date: Optional[str] = None
-    due_date: Optional[str] = None
-    subtotal: Optional[float] = None
-    tax: Optional[float] = None
-    total: Optional[float] = None
+    invoice_number: str | None = None
+    date: str | None = None
+    due_date: str | None = None
+    subtotal: float | None = None
+    tax: float | None = None
+    total: float | None = None
     currency: str = "USD"
-    line_items: list["LineItem"] = field(default_factory=list)
-    category: Optional[str] = None
-    payment_method: Optional[str] = None
-    source_page: Optional[int] = None
+    line_items: list[LineItem] = field(default_factory=list)
+    category: str | None = None
+    payment_method: str | None = None
+    source_page: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -130,7 +130,7 @@ class InvoiceExtractor:
         invoices = extractor.extract(chunks)
     """
 
-    def __init__(self, chat: RAGChat):
+    def __init__(self, chat: RAGChat) -> None:
         """Initialize extractor.
 
         Args:
@@ -154,7 +154,7 @@ class InvoiceExtractor:
                 invoices.append(invoice)
         return invoices
 
-    def _extract_from_chunk(self, chunk: Chunk) -> Optional[Invoice]:
+    def _extract_from_chunk(self, chunk: Chunk) -> Invoice | None:
         """Extract invoice from single chunk using LLM.
 
         Args:
@@ -189,7 +189,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         except (json.JSONDecodeError, TypeError):
             return self._fallback_extract(chunk)
 
-    def _fallback_extract(self, chunk: Chunk) -> Optional[Invoice]:
+    def _fallback_extract(self, chunk: Chunk) -> Invoice | None:
         """Fallback regex-based extraction when LLM fails.
 
         Args:

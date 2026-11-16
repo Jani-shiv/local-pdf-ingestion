@@ -8,10 +8,12 @@ This module provides text chunking functionality with three strategies:
 from __future__ import annotations
 
 import re
-from typing import TypedDict, Literal, overload
+from typing import TYPE_CHECKING, Literal, TypedDict, overload
 
-from .extract import Page
 from .config import settings
+
+if TYPE_CHECKING:
+    from .extract import Page
 
 
 class Chunk(TypedDict):
@@ -65,12 +67,11 @@ def split_text(
 
     if strategy == "character":
         return _split_character(text, chunk_size, overlap)
-    elif strategy == "semantic":
+    if strategy == "semantic":
         return _split_semantic(text, chunk_size, overlap)
-    elif strategy == "recursive":
+    if strategy == "recursive":
         return _split_recursive(text, chunk_size, overlap)
-    else:
-        raise ValueError(f"Unknown strategy: {strategy}")
+    raise ValueError(f"Unknown strategy: {strategy}")
 
 
 def _split_character(text: str, chunk_size: int, overlap: int) -> list[str]:
@@ -129,9 +130,9 @@ def _split_semantic(text: str, chunk_size: int, overlap: int) -> list[str]:
             chunks.append(" ".join(current_chunk).strip())
             overlap_sentences = _get_overlap_sentences(
                 current_chunk, overlap, model,
-                embeddings[i - len(current_chunk):i] if i >= len(current_chunk) else []
+                embeddings[i - len(current_chunk):i] if i >= len(current_chunk) else [],
             )
-            current_chunk = overlap_sentences + [sent]
+            current_chunk = [*overlap_sentences, sent]
             current_len = sum(len(s) for s in current_chunk) + len(current_chunk) - 1
         else:
             current_chunk.append(sent)
@@ -294,6 +295,6 @@ def chunk_pages(
                     "page": page["page"],
                     "chunk": index,
                     "text": piece,
-                }
+                },
             )
     return result

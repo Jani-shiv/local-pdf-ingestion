@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlparse
 
 from .config import ConfigurationError
-
 
 # Allowed file extensions for ingestion
 ALLOWED_EXTENSIONS: dict[str, list[str]] = {
@@ -109,7 +108,7 @@ def validate_file_path(
     if allowed_extensions and path.suffix.lower() not in allowed_extensions:
         raise ConfigurationError(
             f"Unsupported file type: {path.suffix}. "
-            f"Allowed: {', '.join(sorted(allowed_extensions))}"
+            f"Allowed: {', '.join(sorted(allowed_extensions))}",
         )
 
     # Check for path traversal attempts
@@ -368,7 +367,7 @@ def validate_output_path(path: str | Path | None) -> Path | None:
     if path.suffix.lower() not in allowed_output_extensions:
         raise ConfigurationError(
             f"Unsupported output format: {path.suffix}. "
-            f"Allowed: {', '.join(sorted(allowed_output_extensions))}"
+            f"Allowed: {', '.join(sorted(allowed_output_extensions))}",
         )
 
     return path

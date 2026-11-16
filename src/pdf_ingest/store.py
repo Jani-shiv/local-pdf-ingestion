@@ -12,12 +12,14 @@ import json
 import pickle
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 
-from .chunk import Chunk
 from .config import settings
+
+if TYPE_CHECKING:
+    from .chunk import Chunk
 
 
 class VectorStore(Protocol):
@@ -80,7 +82,7 @@ class FAISSStore:
         results = store.search(query_vector, top_k=5)
     """
 
-    def __init__(self, path: Path | str, dimension: int):
+    def __init__(self, path: Path | str, dimension: int) -> None:
         """Initialize FAISS store.
 
         Args:
@@ -144,7 +146,7 @@ class FAISSStore:
         faiss.normalize_L2(query_vector)
         scores, indices = self._index.search(query_vector, top_k)
         results = []
-        for score, idx in zip(scores[0], indices[0]):
+        for score, idx in zip(scores[0], indices[0], strict=False):
             if idx >= 0 and idx < len(self._metadata):
                 results.append((float(score), self._metadata[idx]))
         return results
@@ -177,7 +179,7 @@ class ChromaStore:
         results = store.search(query_vector, top_k=5)
     """
 
-    def __init__(self, path: Path | str, dimension: int):
+    def __init__(self, path: Path | str, dimension: int) -> None:
         """Initialize ChromaDB store.
 
         Args:
@@ -198,11 +200,11 @@ class ChromaStore:
             from chromadb.config import Settings as ChromaSettings
             self.client = chromadb.PersistentClient(
                 path=str(self.path),
-                settings=ChromaSettings(anonymized_telemetry=False)
+                settings=ChromaSettings(anonymized_telemetry=False),
             )
             self.collection = self.client.get_or_create_collection(
                 name="pdf_chunks",
-                metadata={"hnsw:space": "cosine"}
+                metadata={"hnsw:space": "cosine"},
             )
         except ImportError:
             raise RuntimeError("chromadb not installed. Run: pip install chromadb")
@@ -225,7 +227,7 @@ class ChromaStore:
             ids=ids,
             embeddings=embeddings,
             documents=documents,
-            metadatas=metadatas
+            metadatas=metadatas,
         )
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[float, dict]]:
@@ -240,15 +242,15 @@ class ChromaStore:
         """
         results = self.collection.query(
             query_embeddings=[query_vector.tolist()],
-            n_results=top_k
+            n_results=top_k,
         )
         output = []
         if results["ids"] and results["ids"][0]:
-            for i, (doc_id, doc, metadata, distance) in enumerate(zip(
+            for _i, (doc_id, doc, metadata, distance) in enumerate(zip(
                 results["ids"][0],
                 results["documents"][0],
                 results["metadatas"][0],
-                results["distances"][0]
+                results["distances"][0], strict=False,
             )):
                 score = 1.0 - distance
                 output.append((score, {
@@ -261,7 +263,6 @@ class ChromaStore:
 
     def save(self) -> None:
         """ChromaDB auto-persists, no explicit save needed."""
-        pass
 
     @property
     def count(self) -> int:
@@ -314,7 +315,7 @@ def save_dataset(
     if len(chunks) != len(vectors):
         raise ValueError("chunks and vectors must have the same length")
 
-    records = [{**chunk, "embedding": vector} for chunk, vector in zip(chunks, vectors)]
+    records = [{**chunk, "embedding": vector} for chunk, vector in zip(chunks, vectors, strict=False)]
     payload = {
         "meta": {
             "source": source,

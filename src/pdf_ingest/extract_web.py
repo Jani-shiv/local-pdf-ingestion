@@ -1,12 +1,12 @@
 """Web content extraction using trafilatura."""
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
-import trafilatura
 import requests
+import trafilatura
 
 
 @dataclass
@@ -14,17 +14,17 @@ class WebContent:
     url: str
     title: str
     text: str
-    author: Optional[str] = None
-    date: Optional[str] = None
+    author: str | None = None
+    date: str | None = None
     domain: str = ""
 
 
 class WebExtractor:
-    def __init__(self, timeout: int = 30):
+    def __init__(self, timeout: int = 30) -> None:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; pdf-ingest/0.2; +https://github.com/Jani-shiv/local-pdf-ingestion)"
+            "User-Agent": "Mozilla/5.0 (compatible; pdf-ingest/0.2; +https://github.com/Jani-shiv/local-pdf-ingestion)",
         })
 
     def extract(self, url: str) -> WebContent:
@@ -59,10 +59,8 @@ class WebExtractor:
     def extract_multiple(self, urls: list[str]) -> list[WebContent]:
         results = []
         for url in urls:
-            try:
+            with contextlib.suppress(Exception):
                 results.append(self.extract(url))
-            except Exception as e:
-                print(f"Warning: Failed to extract {url}: {e}")
         return results
 
 

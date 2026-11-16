@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, asdict, field
-from datetime import datetime, timedelta
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-from ..chat import RAGChat
-from ..chunk import Chunk
+if TYPE_CHECKING:
+    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.chunk import Chunk
 
 
 @dataclass
@@ -53,9 +53,9 @@ class Obligation:
     """
     description: str
     party: str  # me, them, both
-    due_date: Optional[str] = None
-    frequency: Optional[str] = None  # one-time, monthly, quarterly, annually
-    clause_ref: Optional[str] = None
+    due_date: str | None = None
+    frequency: str | None = None  # one-time, monthly, quarterly, annually
+    clause_ref: str | None = None
 
 
 @dataclass
@@ -76,14 +76,14 @@ class Contract:
     """
     title: str
     parties: list[str] = field(default_factory=list)
-    effective_date: Optional[str] = None
-    expiration_date: Optional[str] = None
-    contract_type: Optional[str] = None  # service, employment, nda, lease, etc.
+    effective_date: str | None = None
+    expiration_date: str | None = None
+    contract_type: str | None = None  # service, employment, nda, lease, etc.
     clauses: list[Clause] = field(default_factory=list)
     obligations: list[Obligation] = field(default_factory=list)
     risk_flags: list[str] = field(default_factory=list)
     key_terms: dict = field(default_factory=dict)
-    source_page: Optional[int] = None
+    source_page: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -140,7 +140,7 @@ class ContractExtractor:
         contracts = extractor.extract(chunks)
     """
 
-    def __init__(self, chat: RAGChat):
+    def __init__(self, chat: RAGChat) -> None:
         """Initialize extractor.
 
         Args:
@@ -164,7 +164,7 @@ class ContractExtractor:
                 contracts.append(contract)
         return contracts
 
-    def _extract_from_chunk(self, chunk: Chunk) -> Optional[Contract]:
+    def _extract_from_chunk(self, chunk: Chunk) -> Contract | None:
         """Extract contract from single chunk using LLM.
 
         Args:
@@ -228,7 +228,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             if keyword in full_text:
                 contract.risk_flags.append(description)
 
-    def _fallback_extract(self, chunk: Chunk) -> Optional[Contract]:
+    def _fallback_extract(self, chunk: Chunk) -> Contract | None:
         """Fallback regex-based extraction when LLM fails.
 
         Args:

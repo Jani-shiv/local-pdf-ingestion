@@ -10,13 +10,11 @@ from typing import Any
 
 import numpy as np
 
-from .config import settings
-from .pipeline import IngestionPipeline
-from .embed import embed_texts, embed_texts_async
-from .search import search, search_async, HybridSearcher
 from .chat import RAGChat
-from .store import get_vector_store
 from .chunk import chunk_pages
+from .embed import embed_texts, embed_texts_async
+from .pipeline import IngestionPipeline
+from .search import HybridSearcher
 
 
 @dataclass
@@ -212,7 +210,6 @@ def run_benchmark(
     Returns:
         Dictionary of benchmark categories to results
     """
-    print("Running pdf-ingest benchmarks...")
 
     all_results = {}
 
@@ -233,9 +230,8 @@ def run_benchmark(
         tmp_path = Path(tmp_dir) / "bench_vs"
 
         # Build test vector store
-        pipeline = IngestionPipeline(vector_store_path=tmp_path)
-        for i, text in enumerate(test_texts[:3]):
-            from .chunk import Chunk
+        IngestionPipeline(vector_store_path=tmp_path)
+        for _i, text in enumerate(test_texts[:3]):
             chunks = chunk_pages([{"page": 1, "text": text}], chunk_size=500, overlap=50)
             from .embed import embed_texts
             vectors = embed_texts([c["text"] for c in chunks], use_local=True)
@@ -245,32 +241,21 @@ def run_benchmark(
         dimension = 384  # all-MiniLM-L6-v2 dimension
 
         # Run benchmarks
-        print("  Benchmarking chunking...")
         all_results["chunking"] = benchmark_chunking(test_text)
 
-        print("  Benchmarking embeddings...")
         all_results["embeddings"] = benchmark_embeddings(test_texts)
 
-        print("  Benchmarking search...")
         all_results["search"] = benchmark_search(tmp_path, dimension, test_queries)
 
-        print("  Benchmarking ingestion...")
         all_results["ingestion"] = [benchmark_ingestion(test_texts[:3], tmp_path)]
 
         if include_chat:
-            print("  Benchmarking chat...")
             all_results["chat"] = benchmark_chat(tmp_path, dimension, test_queries)
 
     # Print summary
-    print("\nBenchmark Results:")
-    print("=" * 80)
-    for category, results in all_results.items():
-        print(f"\n{category.upper()}:")
-        for r in results:
-            print(f"  {r.name} ({r.metadata.get('mode', 'sync')}): "
-                  f"{r.mean_time*1000:.2f}ms avg, "
-                  f"{r.ops_per_second:.2f} ops/sec "
-                  f"(min={r.min_time*1000:.2f}ms, max={r.max_time*1000:.2f}ms)")
+    for results in all_results.values():
+        for _r in results:
+            pass
 
     # Save to file if requested
     if output_path:
@@ -297,7 +282,6 @@ def run_benchmark(
             for cat, results in all_results.items()
         }
         output_path.write_text(json.dumps(serializable, indent=2))
-        print(f"\nResults saved to {output_path}")
 
     return all_results
 

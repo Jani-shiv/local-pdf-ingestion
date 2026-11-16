@@ -17,33 +17,39 @@ Example:
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from tqdm import tqdm
 
-from .chunk import chunk_pages, Chunk
+from .chat import RAGChat
+from .chunk import Chunk, chunk_pages
 from .config import settings
 from .embed import embed_texts
-from .extract import extract_pages, Page
-from .extract_audio import extract_audio_text, extract_audio_segments, AudioSegment
-from .extract_web import extract_web_content, extract_web_multiple, WebContent
-from .extract_ocr import extract_pdf_ocr, extract_image_ocr, OCRResult
-from .extract_office import extract_office, OfficeContent
-from .store import save_vector_store, get_vector_store
-from .chat import RAGChat
-from .summarize import create_summarizer, Summary
-from .specialize import (
-    RecipeExtractor, Recipe,
-    InvoiceExtractor, Invoice,
-    MedicalExtractor, MedicalReport,
-    ContractExtractor, Contract,
-    StudyExtractor, StudyGuide,
-)
+from .extract import extract_pages
+from .extract_audio import extract_audio_text
+from .extract_ocr import extract_pdf_ocr
+from .extract_office import extract_office
+from .extract_web import extract_web_multiple
 from .progress import progress_bar
+from .specialize import (
+    Contract,
+    ContractExtractor,
+    Invoice,
+    InvoiceExtractor,
+    MedicalExtractor,
+    MedicalReport,
+    Recipe,
+    RecipeExtractor,
+    StudyExtractor,
+    StudyGuide,
+)
+from .store import get_vector_store, save_vector_store
+from .summarize import Summary, create_summarizer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass
@@ -99,7 +105,7 @@ class IngestionPipeline:
         chunk_size: int | None = None,
         overlap: int | None = None,
         strategy: str | None = None,
-    ):
+    ) -> None:
         """Initialize ingestion pipeline.
 
         Args:
@@ -135,7 +141,7 @@ class IngestionPipeline:
         vectors_list = embed_texts(texts)
         vectors = np.array(vectors_list, dtype=np.float32)
 
-        store = save_vector_store(chunks, vectors, self.vector_store_path)
+        save_vector_store(chunks, vectors, self.vector_store_path)
 
         return IngestionResult(
             source=pdf_path.name,
@@ -160,7 +166,7 @@ class IngestionPipeline:
         texts = [c["text"] for c in chunks]
         vectors_list = embed_texts(texts)
         vectors = np.array(vectors_list, dtype=np.float32)
-        store = save_vector_store(chunks, vectors, self.vector_store_path)
+        save_vector_store(chunks, vectors, self.vector_store_path)
 
         return IngestionResult(
             source=Path(audio_path).name,
@@ -187,7 +193,7 @@ class IngestionPipeline:
             texts = [c["text"] for c in chunks]
             vectors_list = embed_texts(texts)
             vectors = np.array(vectors_list, dtype=np.float32)
-            store = save_vector_store(chunks, vectors, self.vector_store_path)
+            save_vector_store(chunks, vectors, self.vector_store_path)
 
             results.append(IngestionResult(
                 source=wc.url,
@@ -217,7 +223,7 @@ class IngestionPipeline:
         texts = [c["text"] for c in all_chunks]
         vectors_list = embed_texts(texts)
         vectors = np.array(vectors_list, dtype=np.float32)
-        store = save_vector_store(all_chunks, vectors, self.vector_store_path)
+        save_vector_store(all_chunks, vectors, self.vector_store_path)
 
         return IngestionResult(
             source=Path(file_path).name,
@@ -272,8 +278,8 @@ class IngestionPipeline:
                 elif suffix in (".png", ".jpg", ".jpeg", ".tiff", ".bmp"):
                     # Could add image OCR here
                     pass
-            except Exception as e:
-                print(f"Failed to ingest {file_path}: {e}")
+            except Exception:
+                pass
 
         return results
 
@@ -363,7 +369,7 @@ class KnowledgeBase:
         recipes = kb.extract_recipes()
     """
 
-    def __init__(self, vector_store_path: Path | str, dimension: int | None = None):
+    def __init__(self, vector_store_path: Path | str, dimension: int | None = None) -> None:
         """Initialize knowledge base.
 
         Args:

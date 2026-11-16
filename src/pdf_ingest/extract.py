@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict, Optional
+from typing import TypedDict
 
 import pymupdf  # PyMuPDF (older releases expose it as `fitz`)
 
@@ -17,17 +17,17 @@ class Page(TypedDict):
 @dataclass
 class DocumentMetadata:
     """Metadata extracted from a PDF document."""
-    title: Optional[str] = None
-    author: Optional[str] = None
-    subject: Optional[str] = None
-    creator: Optional[str] = None
-    producer: Optional[str] = None
-    creation_date: Optional[datetime] = None
-    modification_date: Optional[datetime] = None
+    title: str | None = None
+    author: str | None = None
+    subject: str | None = None
+    creator: str | None = None
+    producer: str | None = None
+    creation_date: datetime | None = None
+    modification_date: datetime | None = None
     page_count: int = 0
     file_size: int = 0
     is_encrypted: bool = False
-    pdf_version: Optional[str] = None
+    pdf_version: str | None = None
 
 
 def extract_pages(pdf_path: str | Path) -> tuple[list[Page], int]:
@@ -84,8 +84,7 @@ def extract_pages_with_metadata(pdf_path: str | Path) -> tuple[list[Page], int, 
                 if date_str:
                     try:
                         # PDF dates are in format: D:YYYYMMDDHHmmSSOHH'mm'
-                        if date_str.startswith("D:"):
-                            date_str = date_str[2:]
+                        date_str = date_str.removeprefix("D:")
                         # Parse basic format
                         dt = datetime.strptime(date_str[:14], "%Y%m%d%H%M%S")
                         setattr(metadata, attr, dt)

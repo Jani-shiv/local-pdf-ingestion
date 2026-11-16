@@ -1,19 +1,19 @@
 """Domain-specific extractors for unique day-to-day problems."""
-from .recipe import RecipeExtractor, Recipe
-from .invoice import InvoiceExtractor, Invoice
+from .contract import Contract, ContractExtractor
+from .invoice import Invoice, InvoiceExtractor
 from .medical import MedicalExtractor, MedicalReport
-from .contract import ContractExtractor, Contract
+from .recipe import Recipe, RecipeExtractor
 from .study import StudyExtractor, StudyGuide
 
 __all__ = [
-    "RecipeExtractor",
-    "Recipe",
-    "InvoiceExtractor",
+    "Contract",
+    "ContractExtractor",
     "Invoice",
+    "InvoiceExtractor",
     "MedicalExtractor",
     "MedicalReport",
-    "ContractExtractor",
-    "Contract",
+    "Recipe",
+    "RecipeExtractor",
     "StudyExtractor",
     "StudyGuide",
 ]

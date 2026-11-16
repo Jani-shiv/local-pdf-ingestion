@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, asdict, field
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-from ..chat import RAGChat
-from ..chunk import Chunk
+if TYPE_CHECKING:
+    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.chunk import Chunk
 
 
 @dataclass
@@ -35,9 +36,9 @@ class LabValue:
     """
     name: str
     value: str
-    unit: Optional[str] = None
-    reference_range: Optional[str] = None
-    status: Optional[str] = None  # normal, high, low, critical
+    unit: str | None = None
+    reference_range: str | None = None
+    status: str | None = None  # normal, high, low, critical
     flag: bool = False
 
 
@@ -58,17 +59,17 @@ class MedicalReport:
         flagged_items: Items requiring attention
         source_page: Source document page number
     """
-    patient_name: Optional[str] = None
-    report_date: Optional[str] = None
-    provider: Optional[str] = None
-    report_type: Optional[str] = None  # blood work, imaging, pathology, etc.
-    summary: Optional[str] = None
+    patient_name: str | None = None
+    report_date: str | None = None
+    provider: str | None = None
+    report_type: str | None = None  # blood work, imaging, pathology, etc.
+    summary: str | None = None
     lab_values: list[LabValue] = field(default_factory=list)
     diagnoses: list[str] = field(default_factory=list)
     medications: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
     flagged_items: list[str] = field(default_factory=list)
-    source_page: Optional[int] = None
+    source_page: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -135,7 +136,7 @@ class MedicalExtractor:
         reports = extractor.extract(chunks)
     """
 
-    def __init__(self, chat: RAGChat):
+    def __init__(self, chat: RAGChat) -> None:
         """Initialize extractor.
 
         Args:
@@ -159,7 +160,7 @@ class MedicalExtractor:
                 reports.append(report)
         return reports
 
-    def _extract_from_chunk(self, chunk: Chunk) -> Optional[MedicalReport]:
+    def _extract_from_chunk(self, chunk: Chunk) -> MedicalReport | None:
         """Extract medical report from single chunk using LLM.
 
         Args:
@@ -194,10 +195,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             report = MedicalReport(**data)
             # Auto-flag based on status
             for lv in report.lab_values:
-                if isinstance(lv, dict):
-                    status = lv.get("status")
-                else:
-                    status = getattr(lv, "status", None)
+                status = lv.get("status") if isinstance(lv, dict) else getattr(lv, "status", None)
                 if status in ("high", "low", "critical"):
                     if isinstance(lv, dict):
                         lv["flag"] = True
@@ -214,7 +212,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         except (json.JSONDecodeError, TypeError):
             return self._fallback_extract(chunk)
 
-    def _fallback_extract(self, chunk: Chunk) -> Optional[MedicalReport]:
+    def _fallback_extract(self, chunk: Chunk) -> MedicalReport | None:
         """Fallback regex-based extraction when LLM fails.
 
         Args:

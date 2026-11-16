@@ -24,10 +24,13 @@ from __future__ import annotations
 import sys
 import threading
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from tqdm import tqdm
 from tqdm.auto import trange
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
 
 T = TypeVar("T")
 
@@ -54,7 +57,7 @@ class ProgressBar:
         disable: bool = False,
         leave: bool = True,
         position: int | None = None,
-    ):
+    ) -> None:
         """Initialize progress bar.
 
         Args:
@@ -105,7 +108,7 @@ class ProgressBar:
         """Close the progress bar and clean up."""
         self._bar.close()
 
-    def __enter__(self) -> "ProgressBar":
+    def __enter__(self) -> ProgressBar:
         return self
 
     def __exit__(self, *args: Any) -> None:
@@ -176,8 +179,7 @@ def track(
         dynamic_ncols=True,
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
     ) as pbar:
-        for item in pbar:
-            yield item
+        yield from pbar
 
 
 def track_range(
@@ -203,8 +205,7 @@ def track_range(
         dynamic_ncols=True,
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
     ) as pbar:
-        for i in pbar:
-            yield i
+        yield from pbar
 
 
 class MultiProgress:
@@ -220,7 +221,7 @@ class MultiProgress:
         mp.close_all()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bars: dict[str, ProgressBar] = {}
 
     def add_bar(
@@ -283,7 +284,7 @@ class MultiProgress:
             bar.close()
         self._bars.clear()
 
-    def __enter__(self) -> "MultiProgress":
+    def __enter__(self) -> MultiProgress:
         return self
 
     def __exit__(self, *args: Any) -> None:
@@ -308,7 +309,7 @@ class Spinner:
         "bounce": ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
     }
 
-    def __init__(self, desc: str = "Processing", style: str = "dots", disable: bool = False):
+    def __init__(self, desc: str = "Processing", style: str = "dots", disable: bool = False) -> None:
         """Initialize spinner.
 
         Args:
@@ -342,24 +343,23 @@ class Spinner:
         if self._thread:
             self._thread.cancel()
         if final_msg:
-            print(f"\r{final_msg}", file=sys.stdout, flush=True)
+            pass
         else:
-            print("\r" + " " * (len(self.desc) + 4) + "\r", file=sys.stdout, flush=True, end="")
+            pass
 
     def _print_frame(self) -> None:
         """Print current animation frame."""
         if not self._running:
             return
         frames = self.SPINNERS.get(self.style, self.SPINNERS["dots"])
-        frame = frames[self._index % len(frames)]
-        print(f"\r{self.desc} {frame}", file=sys.stdout, flush=True, end="")
+        frames[self._index % len(frames)]
         self._index += 1
         if self._running:
             self._thread = threading.Timer(0.1, self._print_frame)
             self._thread.daemon = True
             self._thread.start()
 
-    def __enter__(self) -> "Spinner":
+    def __enter__(self) -> Spinner:
         self.start()
         return self
 
@@ -378,14 +378,13 @@ def format_duration(seconds: float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.1f}s"
-    elif seconds < 3600:
+    if seconds < 3600:
         minutes = int(seconds // 60)
         secs = seconds % 60
         return f"{minutes}m {secs:.0f}s"
-    else:
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        return f"{hours}h {minutes}m"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return f"{hours}h {minutes}m"
 
 
 def format_bytes(bytes_val: int) -> str:

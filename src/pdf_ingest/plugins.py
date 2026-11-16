@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, TypeVar, Generic
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from .chunk import Chunk
-
+if TYPE_CHECKING:
+    from .chunk import Chunk
 
 T = TypeVar("T")
 
@@ -55,7 +55,6 @@ class ExtractorPlugin(ABC, Generic[T]):
         Returns:
             ExtractorResult with extracted items, errors, and metadata
         """
-        pass
 
     def to_dict(self, item: T) -> dict[str, Any]:
         """Convert item to dictionary for JSON export."""

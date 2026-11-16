@@ -1,108 +1,169 @@
 """Local PDF ingestion pipeline: extract, chunk, embed, store, search, chat, summarize."""
 from __future__ import annotations
 
+from .benchmark import BenchmarkResult, run_benchmark
+from .chat import ChatResponse, RAGChat, create_chat
 from .chunk import Chunk, chunk_pages, split_text
-from .config import settings, ConfigurationError
+from .config import ConfigurationError, settings
 from .embed import (
-    embed_texts,
-    embed_query,
-    embed_texts_async,
-    embed_query_async,
     EmbeddingError,
+    embed_query,
+    embed_query_async,
+    embed_texts,
+    embed_texts_async,
 )
 from .extract import (
+    DocumentMetadata,
+    Page,
     extract_pages,
     extract_pages_with_metadata,
-    Page,
-    DocumentMetadata,
 )
-from .extract_audio import extract_audio_text, extract_audio_segments, AudioSegment
-from .extract_web import extract_web_content, extract_web_multiple, WebContent
-from .extract_ocr import extract_pdf_ocr, extract_image_ocr, OCRResult
-from .extract_office import extract_office, OfficeContent
-from .store import (
-    save_dataset,
-    load_dataset,
-    save_vector_store,
-    load_vector_store,
-    VectorStore,
-    FAISSStore,
-    ChromaStore,
-    get_vector_store,
-)
-from .search import search, search_async, SearchResult, HybridSearcher
-from .chat import RAGChat, ChatResponse, create_chat
-from .summarize import create_summarizer, Summarizer, Summary
+from .extract_audio import AudioSegment, extract_audio_segments, extract_audio_text
+from .extract_ocr import OCRResult, extract_image_ocr, extract_pdf_ocr
+from .extract_office import OfficeContent, extract_office
+from .extract_web import WebContent, extract_web_content, extract_web_multiple
+from .logging import ColoredFormatter, JSONFormatter, LogContext, get_logger, setup_logging
 from .pipeline import (
-    IngestionPipeline,
-    KnowledgeBase,
-    create_pipeline,
-    create_knowledge_base,
-    IngestionResult,
     BatchIngestionResult,
-)
-from .specialize import (
-    RecipeExtractor, Recipe,
-    InvoiceExtractor, Invoice,
-    MedicalExtractor, MedicalReport,
-    ContractExtractor, Contract,
-    StudyExtractor, StudyGuide,
-)
-from .logging import setup_logging, get_logger, LogContext, JSONFormatter, ColoredFormatter
-from .validation import InputValidator, ConfigurationError as ValidationConfigurationError
-from .progress import (
-    ProgressBar,
-    progress_bar,
-    track,
-    track_range,
-    MultiProgress,
-    Spinner,
-    format_duration,
-    format_bytes,
+    IngestionPipeline,
+    IngestionResult,
+    KnowledgeBase,
+    create_knowledge_base,
+    create_pipeline,
 )
 from .plugins import (
     ExtractorPlugin,
     PluginRegistry,
-    register_extractor,
     get_extractor,
+    register_extractor,
 )
-from .benchmark import run_benchmark, BenchmarkResult
+from .progress import (
+    MultiProgress,
+    ProgressBar,
+    Spinner,
+    format_bytes,
+    format_duration,
+    progress_bar,
+    track,
+    track_range,
+)
+from .search import HybridSearcher, SearchResult, search, search_async
+from .specialize import (
+    Contract,
+    ContractExtractor,
+    Invoice,
+    InvoiceExtractor,
+    MedicalExtractor,
+    MedicalReport,
+    Recipe,
+    RecipeExtractor,
+    StudyExtractor,
+    StudyGuide,
+)
+from .store import (
+    ChromaStore,
+    FAISSStore,
+    VectorStore,
+    get_vector_store,
+    load_dataset,
+    load_vector_store,
+    save_dataset,
+    save_vector_store,
+)
+from .summarize import Summarizer, Summary, create_summarizer
+from .validation import ConfigurationError as ValidationConfigurationError
+from .validation import InputValidator
 
 __version__ = "0.3.0"
 
 __all__ = [
-    # Core
-    "Page", "extract_pages", "extract_pages_with_metadata", "DocumentMetadata",
-    "Chunk", "chunk_pages", "split_text",
-    "embed_texts", "embed_query", "embed_texts_async", "embed_query_async", "EmbeddingError",
-    "save_dataset", "load_dataset",
-    "save_vector_store", "load_vector_store", "VectorStore", "FAISSStore", "ChromaStore", "get_vector_store",
-    "search", "search_async", "SearchResult", "HybridSearcher",
-    "RAGChat", "ChatResponse", "create_chat",
-    "create_summarizer", "Summarizer", "Summary",
-    "IngestionPipeline", "KnowledgeBase", "create_pipeline", "create_knowledge_base", "IngestionResult", "BatchIngestionResult",
-    # Multi-source
-    "extract_audio_text", "extract_audio_segments", "AudioSegment",
-    "extract_web_content", "extract_web_multiple", "WebContent",
-    "extract_pdf_ocr", "extract_image_ocr", "OCRResult",
-    "extract_office", "OfficeContent",
-    # Domain extractors
-    "RecipeExtractor", "Recipe",
-    "InvoiceExtractor", "Invoice",
-    "MedicalExtractor", "MedicalReport",
-    "ContractExtractor", "Contract",
-    "StudyExtractor", "StudyGuide",
-    # Config
-    "settings", "ConfigurationError",
-    # Logging
-    "setup_logging", "get_logger", "LogContext", "JSONFormatter", "ColoredFormatter",
-    # Validation
-    "InputValidator", "ValidationConfigurationError",
-    # Progress
-    "ProgressBar", "progress_bar", "track", "track_range", "MultiProgress", "Spinner",
-    "format_duration", "format_bytes",
+    "AudioSegment",
+    "BatchIngestionResult",
+    "BenchmarkResult",
+    "ChatResponse",
+    "ChromaStore",
+    "Chunk",
+    "ColoredFormatter",
+    "ConfigurationError",
+    "Contract",
+    "ContractExtractor",
+    "DocumentMetadata",
+    "EmbeddingError",
     # Plugins
-    "ExtractorPlugin", "PluginRegistry", "register_extractor", "get_extractor",
+    "ExtractorPlugin",
+    "FAISSStore",
+    "HybridSearcher",
+    "IngestionPipeline",
+    "IngestionResult",
+    # Validation
+    "InputValidator",
+    "Invoice",
+    "InvoiceExtractor",
+    "JSONFormatter",
+    "KnowledgeBase",
+    "LogContext",
+    "MedicalExtractor",
+    "MedicalReport",
+    "MultiProgress",
+    "OCRResult",
+    "OfficeContent",
+    # Core
+    "Page",
+    "PluginRegistry",
+    # Progress
+    "ProgressBar",
+    "RAGChat",
+    "Recipe",
+    # Domain extractors
+    "RecipeExtractor",
+    "SearchResult",
+    "Spinner",
+    "StudyExtractor",
+    "StudyGuide",
+    "Summarizer",
+    "Summary",
+    "ValidationConfigurationError",
+    "VectorStore",
+    "WebContent",
+    "chunk_pages",
+    "create_chat",
+    "create_knowledge_base",
+    "create_pipeline",
+    "create_summarizer",
+    "embed_query",
+    "embed_query_async",
+    "embed_texts",
+    "embed_texts_async",
+    "extract_audio_segments",
+    # Multi-source
+    "extract_audio_text",
+    "extract_image_ocr",
+    "extract_office",
+    "extract_pages",
+    "extract_pages_with_metadata",
+    "extract_pdf_ocr",
+    "extract_web_content",
+    "extract_web_multiple",
+    "format_bytes",
+    "format_duration",
+    "get_extractor",
+    "get_logger",
+    "get_vector_store",
+    "load_dataset",
+    "load_vector_store",
+    "progress_bar",
+    "register_extractor",
     # Benchmark
-    "run_benchmark", "BenchmarkResult",
+    "run_benchmark",
+    "save_dataset",
+    "save_vector_store",
+    "search",
+    "search_async",
+    # Config
+    "settings",
+    # Logging
+    "setup_logging",
+    "split_text",
+    "track",
+    "track_range",
 ]

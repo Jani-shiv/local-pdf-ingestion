@@ -13,11 +13,12 @@ Example:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict, field
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-from ..chat import RAGChat
-from ..chunk import Chunk
+if TYPE_CHECKING:
+    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.chunk import Chunk
 
 
 @dataclass
@@ -32,7 +33,7 @@ class Flashcard:
     """
     question: str
     answer: str
-    topic: Optional[str] = None
+    topic: str | None = None
     difficulty: str = "medium"  # easy, medium, hard
 
 
@@ -51,7 +52,7 @@ class QuizQuestion:
     options: list[str]
     correct_index: int
     explanation: str
-    topic: Optional[str] = None
+    topic: str | None = None
 
 
 @dataclass
@@ -63,7 +64,7 @@ class MindMapNode:
         children: Child nodes
     """
     topic: str
-    children: list["MindMapNode"] = field(default_factory=list)
+    children: list[MindMapNode] = field(default_factory=list)
 
 
 @dataclass
@@ -85,7 +86,7 @@ class StudyGuide:
     topics: list[str] = field(default_factory=list)
     flashcards: list[Flashcard] = field(default_factory=list)
     quiz_questions: list[QuizQuestion] = field(default_factory=list)
-    mind_map: Optional[MindMapNode] = None
+    mind_map: MindMapNode | None = None
     key_concepts: dict[str, str] = field(default_factory=dict)
     source_pages: list[int] = field(default_factory=list)
 
@@ -100,7 +101,7 @@ class StudyGuide:
         """Recursively convert mind map to dict."""
         return {
             "topic": node.topic,
-            "children": [self._mind_map_to_dict(c) for c in node.children]
+            "children": [self._mind_map_to_dict(c) for c in node.children],
         }
 
     def to_json(self) -> str:
@@ -168,7 +169,7 @@ class StudyExtractor:
         guides = extractor.extract(chunks)
     """
 
-    def __init__(self, chat: RAGChat):
+    def __init__(self, chat: RAGChat) -> None:
         """Initialize extractor.
 
         Args:
@@ -192,7 +193,7 @@ class StudyExtractor:
                 guides.append(guide)
         return guides
 
-    def _extract_from_chunk(self, chunk: Chunk) -> Optional[StudyGuide]:
+    def _extract_from_chunk(self, chunk: Chunk) -> StudyGuide | None:
         """Extract study guide from single chunk using LLM.
 
         Args:
@@ -227,7 +228,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         except (json.JSONDecodeError, TypeError):
             return self._fallback_extract(chunk)
 
-    def _fallback_extract(self, chunk: Chunk) -> Optional[StudyGuide]:
+    def _fallback_extract(self, chunk: Chunk) -> StudyGuide | None:
         """Fallback extraction when LLM fails.
 
         Args:

@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 try:
     from docx import Document
@@ -34,7 +37,7 @@ def extract_docx(path: str | Path) -> Generator[OfficeContent, None, None]:
         raise RuntimeError("python-docx not installed. Run: pip install python-docx")
     doc = Document(path)
     full_text = []
-    for i, para in enumerate(doc.paragraphs):
+    for _i, para in enumerate(doc.paragraphs):
         if para.text.strip():
             full_text.append(para.text)
     yield OfficeContent(
@@ -89,9 +92,8 @@ def extract_office(path: str | Path) -> list[OfficeContent]:
     suffix = Path(path).suffix.lower()
     if suffix == ".docx":
         return list(extract_docx(path))
-    elif suffix == ".xlsx":
+    if suffix == ".xlsx":
         return list(extract_xlsx(path))
-    elif suffix == ".pptx":
+    if suffix == ".pptx":
         return list(extract_pptx(path))
-    else:
-        raise ValueError(f"Unsupported format: {suffix}")
+    raise ValueError(f"Unsupported format: {suffix}")

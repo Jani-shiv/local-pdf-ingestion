@@ -13,15 +13,15 @@ from __future__ import annotations
 
 import csv
 import json
-from io import StringIO
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
-from .chunk import Chunk
-from .store import VectorStore, load_vector_store
-from .specialize import StudyGuide
+from .store import load_vector_store
+
+if TYPE_CHECKING:
+    from .specialize import StudyGuide
 
 
 def export_knowledge_base_json(
@@ -145,12 +145,11 @@ def export_knowledge_base(
     """
     if format == "json":
         return export_knowledge_base_json(vector_store_path, dimension, output_path)
-    elif format == "markdown":
+    if format == "markdown":
         return export_knowledge_base_markdown(vector_store_path, dimension, output_path)
-    elif format == "csv":
+    if format == "csv":
         return export_knowledge_base_csv(vector_store_path, dimension, output_path)
-    else:
-        raise ValueError(f"Unsupported format: {format}")
+    raise ValueError(f"Unsupported format: {format}")
 
 
 def export_study_guide_anki(

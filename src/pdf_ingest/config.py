@@ -11,7 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class ConfigurationError(ValueError):
     """Raised when configuration validation fails."""
 
-    pass
 
 
 class Settings(BaseSettings):
@@ -183,7 +182,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_paths(self) -> "Settings":
+    def validate_paths(self) -> Settings:
         self.vector_store_path = self.vector_store_path.expanduser().resolve()
         self.output_dir = self.output_dir.expanduser().resolve()
         if self.log_file:

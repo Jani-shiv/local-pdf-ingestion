@@ -2,7 +2,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "images"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -17,7 +17,7 @@ def canvas(w=12, h=6.2):
     return fig, ax
 
 
-def box(ax, x, y, w, h, text, color, sub=None, fs=14):
+def box(ax, x, y, w, h, text, color, sub=None, fs=14) -> None:
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.4,rounding_size=2.5",
                                 fc=color, ec="none"))
     ax.text(x + w / 2, y + h / 2 + (3 if sub else 0), text, ha="center", va="center",
@@ -26,12 +26,12 @@ def box(ax, x, y, w, h, text, color, sub=None, fs=14):
         ax.text(x + w / 2, y + h / 2 - 5, sub, ha="center", va="center", color="white", fontsize=10.5)
 
 
-def arrow(ax, x1, y1, x2, y2):
+def arrow(ax, x1, y1, x2, y2) -> None:
     ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="-|>", mutation_scale=18,
                                  color=INK, lw=2))
 
 
-def pipeline():
+def pipeline() -> None:
     fig, ax = canvas()
     ax.text(50, 92, "PDF ingestion pipeline", ha="center", fontsize=22, fontweight="bold", color=INK)
     ax.text(50, 84, "Everything runs on your own machine", ha="center", fontsize=13, color="#475569")
@@ -48,7 +48,7 @@ def pipeline():
     fig.savefig(OUT / "01-pipeline.png", bbox_inches="tight"); plt.close(fig)
 
 
-def chunking():
+def chunking() -> None:
     fig, ax = canvas(12, 5.6)
     ax.text(50, 94, "How overlapping chunks work", ha="center", fontsize=22, fontweight="bold", color=INK)
     ax.add_patch(Rectangle((5, 66), 90, 10, fc="#e2e8f0", ec="none"))
@@ -64,14 +64,14 @@ def chunking():
     fig.savefig(OUT / "02-chunking-overlap.png", bbox_inches="tight"); plt.close(fig)
 
 
-def embeddings():
+def embeddings() -> None:
     fig, ax = canvas(12, 6)
     ax.text(50, 94, "Different words, similar meaning", ha="center", fontsize=22, fontweight="bold", color=INK)
     texts = ["How do I restart a Kubernetes pod?", "Steps to recreate a failed pod", "Best pasta recipe for dinner"]
     cols = [COLORS[0], COLORS[0], "#94a3b8"]
     ys = [66, 44, 22]
     vec = [[0.82, 0.11, 0.64], [0.79, 0.14, 0.61], [0.05, 0.93, 0.12]]
-    for t, c, y, v in zip(texts, cols, ys, vec):
+    for t, c, y, v in zip(texts, cols, ys, vec, strict=False):
         box(ax, 3, y, 44, 14, t, c, fs=12)
         arrow(ax, 48, y + 7, 56, y + 7)
         ax.text(57, y + 7, "[" + ", ".join(f"{n:.2f}" for n in v) + ", ...]", va="center",
@@ -81,7 +81,7 @@ def embeddings():
     fig.savefig(OUT / "03-embeddings-concept.png", bbox_inches="tight"); plt.close(fig)
 
 
-def cover():
+def cover() -> None:
     fig, ax = canvas(12, 6.3)
     fig.patch.set_facecolor("#0f172a")
     ax.add_patch(Rectangle((0, 0), 100, 100, fc="#0f172a", ec="none"))
@@ -97,4 +97,3 @@ def cover():
 
 for fn in (cover, pipeline, chunking, embeddings):
     fn()
-print(sorted(p.name for p in OUT.glob("*.png")))

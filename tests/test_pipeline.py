@@ -6,22 +6,22 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from pdf_ingest import (
-    extract_pages, split_text, chunk_pages,
-    embed_texts, embed_query,
-    save_dataset, load_dataset,
-    save_vector_store, load_vector_store, VectorStore,
-    search, SearchResult,
-    RAGChat, ChatResponse,
-    IngestionPipeline, KnowledgeBase,
-    Recipe, Invoice, MedicalReport, Contract, StudyGuide,
-    settings,
-)
+from typing import NoReturn
 
+from pdf_ingest import (
+    IngestionPipeline,
+    KnowledgeBase,
+    chunk_pages,
+    extract_pages,
+    load_dataset,
+    save_dataset,
+    settings,
+    split_text,
+)
 
 # ===== Existing tests =====
 
-@pytest.fixture()
+@pytest.fixture
 def sample_pdf(tmp_path):
     import pymupdf
 
@@ -33,36 +33,36 @@ def sample_pdf(tmp_path):
     return path
 
 
-def test_extract_skips_blank_pages(sample_pdf):
+def test_extract_skips_blank_pages(sample_pdf) -> None:
     pages, total = extract_pages(sample_pdf)
     assert total == 2
     assert [p["page"] for p in pages] == [1]
 
 
-def test_extract_missing_file():
+def test_extract_missing_file() -> None:
     with pytest.raises(FileNotFoundError):
         extract_pages("nope.pdf")
 
 
-def test_split_text_respects_size_and_overlap():
+def test_split_text_respects_size_and_overlap() -> None:
     text = "x" * 2500
     chunks = split_text(text, chunk_size=1000, overlap=150, strategy="character")
     assert all(len(c) <= 1000 for c in chunks)
     assert len(chunks) == 3
 
 
-def test_split_text_no_overlap_only_tail():
+def test_split_text_no_overlap_only_tail() -> None:
     chunks = split_text("abcdefghij", chunk_size=10, overlap=2)
     assert chunks == ["abcdefghij"]
 
 
-@pytest.mark.parametrize("size,overlap", [(0, 0), (10, 10), (10, -1)])
-def test_split_text_validation(size, overlap):
+@pytest.mark.parametrize(("size", "overlap"), [(0, 0), (10, 10), (10, -1)])
+def test_split_text_validation(size, overlap) -> None:
     with pytest.raises(ValueError):
         split_text("hello", size, overlap)
 
 
-def test_chunk_pages_ids_and_metadata():
+def test_chunk_pages_ids_and_metadata() -> None:
     chunks = chunk_pages([{"page": 3, "text": "a" * 1200}])
     assert chunks[0]["id"] == "p3-c0"
     assert {c["page"] for c in chunks} == {3}
@@ -70,7 +70,7 @@ def test_chunk_pages_ids_and_metadata():
 
 # ===== New chunking tests =====
 
-def test_split_text_semantic():
+def test_split_text_semantic() -> None:
     text = "This is sentence one. This is sentence two. This is sentence three. " * 50
     chunks = split_text(text, chunk_size=500, overlap=50, strategy="semantic")
     assert len(chunks) > 0
@@ -79,7 +79,7 @@ def test_split_text_semantic():
     assert all(len(c) > 0 for c in chunks)
 
 
-def test_split_text_recursive():
+def test_split_text_recursive() -> None:
     text = "Paragraph one.\n\nParagraph two.\n\nParagraph three."
     chunks = split_text(text, chunk_size=100, overlap=20, strategy="recursive")
     assert len(chunks) > 0
@@ -88,11 +88,11 @@ def test_split_text_recursive():
 # ===== Embedding tests =====
 
 class FakeResponse:
-    def __init__(self, n, status=200):
+    def __init__(self, n, status=200) -> None:
         self.status_code = status
         self._n = n
 
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         if self.status_code >= 400:
             raise RuntimeError(self.status_code)
 
@@ -100,7 +100,7 @@ class FakeResponse:
         return {"embeddings": [[0.1, 0.2, 0.3] for _ in range(self._n)]}
 
 
-def test_embed_batches(monkeypatch):
+def test_embed_batches(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
     calls = []
 
@@ -114,16 +114,16 @@ def test_embed_batches(monkeypatch):
     assert calls == [2, 2, 1]
 
 
-def test_embed_model_missing(monkeypatch):
+def test_embed_model_missing(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
     monkeypatch.setattr(embed_mod.requests, "post", lambda *a, **k: FakeResponse(0, 404))
     with pytest.raises(embed_mod.EmbeddingError, match="ollama pull"):
         embed_mod.embed_texts(["t"])
 
 
-def test_embed_connection_error(monkeypatch):
+def test_embed_connection_error(monkeypatch) -> None:
     import pdf_ingest.embed as embed_mod
-    def boom(*a, **k):
+    def boom(*a, **k) -> NoReturn:
         raise embed_mod.requests.ConnectionError()
 
     monkeypatch.setattr(embed_mod.requests, "post", boom)
@@ -133,7 +133,7 @@ def test_embed_connection_error(monkeypatch):
 
 # ===== Store tests =====
 
-def test_save_and_load_roundtrip(tmp_path):
+def test_save_and_load_roundtrip(tmp_path) -> None:
     chunks = chunk_pages([{"page": 1, "text": "hello world"}])
     out = save_dataset(tmp_path / "o.json", "t.pdf", chunks, [[0.1, 0.2]],
                        model="m", chunk_size=1000, overlap=150)
@@ -143,7 +143,7 @@ def test_save_and_load_roundtrip(tmp_path):
     json.dumps(data)
 
 
-def test_save_length_mismatch(tmp_path):
+def test_save_length_mismatch(tmp_path) -> None:
     with pytest.raises(ValueError):
         save_dataset(tmp_path / "o.json", "t", [{"id": "a", "page": 1, "chunk": 0, "text": "x"}], [],
                      model="m", chunk_size=10, overlap=1)
@@ -151,10 +151,11 @@ def test_save_length_mismatch(tmp_path):
 
 # ===== Vector store tests =====
 
-def test_faiss_store_add_search(tmp_path):
+def test_faiss_store_add_search(tmp_path) -> None:
     import numpy as np
-    from pdf_ingest.store import FAISSStore
+
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.store import FAISSStore
 
     store = FAISSStore(tmp_path / "faiss", dimension=3)
     vectors = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32)
@@ -172,10 +173,11 @@ def test_faiss_store_add_search(tmp_path):
     assert results[0][1]["id"] == "c1"
 
 
-def test_faiss_store_persistence(tmp_path):
+def test_faiss_store_persistence(tmp_path) -> None:
     import numpy as np
-    from pdf_ingest.store import FAISSStore
+
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.store import FAISSStore
 
     store = FAISSStore(tmp_path / "faiss", dimension=3)
     vectors = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
@@ -192,11 +194,13 @@ def test_faiss_store_persistence(tmp_path):
 
 # ===== Search tests =====
 
-def test_hybrid_search(tmp_path, monkeypatch):
-    import numpy as np
-    from pdf_ingest.store import FAISSStore
-    from pdf_ingest.chunk import Chunk
+def test_hybrid_search(tmp_path, monkeypatch) -> None:
     import sys
+
+    import numpy as np
+
+    from pdf_ingest.chunk import Chunk
+    from pdf_ingest.store import FAISSStore
 
     store = FAISSStore(tmp_path / "faiss", dimension=3)
     vectors = np.array([
@@ -216,7 +220,7 @@ def test_hybrid_search(tmp_path, monkeypatch):
     def mock_embed(q):
         if "apple" in q:
             return np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        elif "banana" in q:
+        if "banana" in q:
             return np.array([0.0, 1.0, 0.0], dtype=np.float32)
         return np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
@@ -232,7 +236,7 @@ def test_hybrid_search(tmp_path, monkeypatch):
 
 # ===== Pipeline tests =====
 
-def test_ingestion_pipeline_pdf(tmp_path, sample_pdf, monkeypatch):
+def test_ingestion_pipeline_pdf(tmp_path, sample_pdf, monkeypatch) -> None:
     pl = IngestionPipeline(vector_store_path=tmp_path / "vs", chunk_size=500, overlap=50)
     # Use local embeddings to avoid Ollama dependency
     monkeypatch.setattr("pdf_ingest.pipeline.settings.use_local_embeddings", True)
@@ -242,9 +246,7 @@ def test_ingestion_pipeline_pdf(tmp_path, sample_pdf, monkeypatch):
     assert result.vector_store_path.exists()
 
 
-def test_knowledge_base_ask(tmp_path, sample_pdf, monkeypatch):
-    import pdf_ingest.chat as chat_mod
-    import numpy as np
+def test_knowledge_base_ask(tmp_path, sample_pdf, monkeypatch) -> None:
 
     # Set local embeddings before creating pipeline
     monkeypatch.setattr("pdf_ingest.pipeline.settings.use_local_embeddings", True)
@@ -271,10 +273,9 @@ def test_knowledge_base_ask(tmp_path, sample_pdf, monkeypatch):
 
 # ===== Domain extractor tests =====
 
-def test_recipe_extractor(tmp_path, monkeypatch):
-    from pdf_ingest.specialize import RecipeExtractor
+def test_recipe_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
-    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.specialize import RecipeExtractor
 
     # Mock chat
     class MockChat:
@@ -301,9 +302,9 @@ def test_recipe_extractor(tmp_path, monkeypatch):
     assert len(recipes[0].ingredients) == 1
 
 
-def test_invoice_extractor(tmp_path, monkeypatch):
-    from pdf_ingest.specialize import InvoiceExtractor
+def test_invoice_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.specialize import InvoiceExtractor
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
@@ -324,9 +325,9 @@ def test_invoice_extractor(tmp_path, monkeypatch):
     assert invoices[0].total == 100.50
 
 
-def test_medical_extractor(tmp_path, monkeypatch):
-    from pdf_ingest.specialize import MedicalExtractor
+def test_medical_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.specialize import MedicalExtractor
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
@@ -345,9 +346,9 @@ def test_medical_extractor(tmp_path, monkeypatch):
     assert reports[0].patient_name == "John Doe"
 
 
-def test_contract_extractor(tmp_path, monkeypatch):
-    from pdf_ingest.specialize import ContractExtractor
+def test_contract_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.specialize import ContractExtractor
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
@@ -366,9 +367,9 @@ def test_contract_extractor(tmp_path, monkeypatch):
     assert contracts[0].title == "Service Agreement"
 
 
-def test_study_extractor(tmp_path, monkeypatch):
-    from pdf_ingest.specialize import StudyExtractor
+def test_study_extractor(tmp_path, monkeypatch) -> None:
     from pdf_ingest.chunk import Chunk
+    from pdf_ingest.specialize import StudyExtractor
 
     class MockChat:
         def _call_ollama(self, prompt, stream=False):
@@ -393,7 +394,7 @@ def test_study_extractor(tmp_path, monkeypatch):
 
 # ===== Settings tests =====
 
-def test_settings_defaults():
+def test_settings_defaults() -> None:
     assert settings.chunk_size == 1000
     assert settings.chunk_overlap == 150
     assert settings.vector_store == "faiss"
@@ -402,18 +403,17 @@ def test_settings_defaults():
 
 # ===== Integration test =====
 
-def test_full_pipeline_cli(tmp_path, sample_pdf, monkeypatch, capsys):
+def test_full_pipeline_cli(tmp_path, sample_pdf, monkeypatch, capsys) -> None:
     """Test the full pipeline via CLI."""
-    from pdf_ingest.cli import main
-
     # Mock Ollama
     import pdf_ingest.embed as embed_mod
+    from pdf_ingest.cli import main
 
     class FakeResponse:
-        def __init__(self, n=1):
+        def __init__(self, n=1) -> None:
             self.status_code = 200
             self._n = n
-        def raise_for_status(self):
+        def raise_for_status(self) -> None:
             pass
         def json(self):
             return {"embeddings": [[0.1] * 768 for _ in range(self._n)]}

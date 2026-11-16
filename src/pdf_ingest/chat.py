@@ -12,18 +12,19 @@ Features:
 """
 from __future__ import annotations
 
-import asyncio
 import json
-import httpx
-import requests
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator, Generator, Any
+from typing import TYPE_CHECKING
+
+import httpx
+import requests
 
 from .config import settings
 from .search import SearchResult, search, search_async
-from .embed import embed_query, embed_query_async
-from .store import load_vector_store
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 
 @dataclass
@@ -78,7 +79,7 @@ class RAGChat:
         system_prompt: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ):
+    ) -> None:
         """Initialize RAG chat.
 
         Args:
@@ -338,8 +339,7 @@ class RAGChat:
         context = self._build_context(results)
         prompt = self._build_prompt(query, context)
 
-        for chunk in self._call_ollama(prompt, stream=True):
-            yield chunk
+        yield from self._call_ollama(prompt, stream=True)
 
         self.history.append(ChatMessage(role="user", content=query))
         self.history.append(ChatMessage(role="assistant", content="".join([])))

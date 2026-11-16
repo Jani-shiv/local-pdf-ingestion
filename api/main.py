@@ -1,21 +1,31 @@
 """FastAPI backend for pdf-ingest."""
 from __future__ import annotations
 
-import time
 import tempfile
+import time
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.websockets import WebSocketState
 
 from pdf_ingest import (
-    IngestionPipeline, KnowledgeBase, create_pipeline, create_knowledge_base,
-    settings, Recipe, Invoice, MedicalReport, Contract, StudyGuide,
+    IngestionPipeline,
+    KnowledgeBase,
+    create_knowledge_base,
+    create_pipeline,
+    settings,
 )
 
 app = FastAPI(
@@ -41,13 +51,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
         
         # Log request
-        print(f"[REQUEST] {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}")
         
         response = await call_next(request)
         
         # Log response
         process_time = time.time() - start_time
-        print(f"[RESPONSE] {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
         
         response.headers["X-Process-Time"] = str(process_time)
         return response
@@ -55,7 +63,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 # Rate limiting middleware
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, requests_per_minute: int = 60):
+    def __init__(self, app, requests_per_minute: int = 60) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
 
@@ -77,20 +85,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Please try again later."},
-                headers={"Retry-After": "60"}
+                headers={"Retry-After": "60"},
             )
         
         _rate_limit_store[client_ip].append(current_time)
-        response = await call_next(request)
-        return response
+        return await call_next(request)
 
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
 
 # Global instances
-pipeline: Optional[IngestionPipeline] = None
-kb: Optional[KnowledgeBase] = None
+pipeline: IngestionPipeline | None = None
+kb: KnowledgeBase | None = None
 
 
 def get_pipeline() -> IngestionPipeline:
@@ -166,7 +173,7 @@ class HealthResponse(BaseModel):
 
 
 @app.on_event("startup")
-async def startup():
+async def startup() -> None:
     get_pipeline()
     get_kb()
 
@@ -304,8 +311,7 @@ async def summarize(request: SummarizeRequest):
 @app.post("/study")
 async def study(format: str = "flashcards"):
     kb = get_kb()
-    result = kb.generate_study_guide(format)
-    return result
+    return kb.generate_study_guide(format)
 
 
 @app.post("/extract")
@@ -315,8 +321,7 @@ async def extract(request: ExtractRequest):
 
     if request.format == "json":
         return [item.to_dict() for item in items]
-    else:
-        return "\n\n---\n\n".join(item.to_markdown() for item in items)
+    return "\n\n---\n\n".join(item.to_markdown() for item in items)
 
 
 @app.get("/kb/stats")
@@ -341,7 +346,7 @@ async def delete_kb():
 
 # WebSocket endpoint for real-time chat
 @app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
+async def websocket_chat(websocket: WebSocket) -> None:
     await websocket.accept()
     kb = get_kb()
     
@@ -374,7 +379,7 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.send_json({"type": "end", "sources": sources, "full_content": full_content})
             
     except WebSocketDisconnect:
-        print("WebSocket disconnected")
+        pass
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
 

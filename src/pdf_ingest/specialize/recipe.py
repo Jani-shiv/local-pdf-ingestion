@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, asdict, field
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-from ..chat import RAGChat
-from ..chunk import Chunk
+if TYPE_CHECKING:
+    from pdf_ingest.chat import RAGChat
+    from pdf_ingest.chunk import Chunk
 
 
 @dataclass
@@ -32,9 +33,9 @@ class Ingredient:
         notes: Preparation notes (e.g., "sifted", "room temperature")
     """
     name: str
-    amount: Optional[str] = None
-    unit: Optional[str] = None
-    notes: Optional[str] = None
+    amount: str | None = None
+    unit: str | None = None
+    notes: str | None = None
 
 
 @dataclass
@@ -54,15 +55,15 @@ class Recipe:
         source_page: Source document page number
     """
     title: str
-    description: Optional[str] = None
-    servings: Optional[int] = None
-    prep_time_minutes: Optional[int] = None
-    cook_time_minutes: Optional[int] = None
+    description: str | None = None
+    servings: int | None = None
+    prep_time_minutes: int | None = None
+    cook_time_minutes: int | None = None
     ingredients: list[Ingredient] = field(default_factory=list)
     instructions: list[str] = field(default_factory=list)
-    nutrition: Optional[dict] = None
+    nutrition: dict | None = None
     tags: list[str] = field(default_factory=list)
-    source_page: Optional[int] = None
+    source_page: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -120,7 +121,7 @@ class RecipeExtractor:
         recipes = extractor.extract(chunks)
     """
 
-    def __init__(self, chat: RAGChat):
+    def __init__(self, chat: RAGChat) -> None:
         """Initialize extractor.
 
         Args:
@@ -144,7 +145,7 @@ class RecipeExtractor:
                 recipes.append(recipe)
         return recipes
 
-    def _extract_from_chunk(self, chunk: Chunk) -> Optional[Recipe]:
+    def _extract_from_chunk(self, chunk: Chunk) -> Recipe | None:
         """Extract recipe from single chunk using LLM.
 
         Args:
@@ -177,7 +178,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         except (json.JSONDecodeError, TypeError):
             return self._fallback_extract(chunk)
 
-    def _fallback_extract(self, chunk: Chunk) -> Optional[Recipe]:
+    def _fallback_extract(self, chunk: Chunk) -> Recipe | None:
         """Fallback regex-based extraction when LLM fails.
 
         Args:
@@ -193,7 +194,7 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
         ingredients = []
         for line in text.split("\n"):
             line = line.strip()
-            if re.match(r"^[\d\/\.\-\s]+(?:cup|tbsp|tsp|oz|lb|g|kg|ml|l|pinch|dash|clove)s?\b", line, re.I):
+            if re.match(r"^[\d\/\.\-\s]+(?:cup|tbsp|tsp|oz|lb|g|kg|ml|l|pinch|dash|clove)s?\b", line, re.IGNORECASE):
                 ingredients.append(Ingredient(name=line))
 
         instructions = []

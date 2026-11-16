@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
-from .config import settings
-from .chat import RAGChat, ChatResponse
-from .chunk import Chunk
-from .store import VectorStore
+if TYPE_CHECKING:
+    from .chat import RAGChat
+    from .chunk import Chunk
+    from .store import VectorStore
 
 
 @dataclass
@@ -56,7 +56,7 @@ class Summarizer:
         self,
         store: VectorStore,
         chat: RAGChat,
-    ):
+    ) -> None:
         """Initialize summarizer.
 
         Args:

@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import logging.config
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -113,7 +112,7 @@ def get_logging_config(
             "stream": "ext://sys.stdout",
             "formatter": "json" if json_logs else "colored",
             "level": log_level,
-        }
+        },
     }
 
     formatters = {
@@ -218,7 +217,7 @@ class LogContext:
         **context: Key-value pairs to add to all log records in context
     """
 
-    def __init__(self, logger: logging.Logger, **context: Any):
+    def __init__(self, logger: logging.Logger, **context: Any) -> None:
         self.logger = logger
         self.context = context
         self.old_factory = logging.getLogRecordFactory()

@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from pathlib import Path
 
 try:
     import pytesseract
@@ -32,7 +35,7 @@ class OCRExtractor:
         engine: str = "tesseract",
         languages: str = "eng",
         paddle_lang: str = "en",
-    ):
+    ) -> None:
         self.engine = engine
         self.languages = languages
 
@@ -69,7 +72,7 @@ class OCRExtractor:
                 output_type=pytesseract.Output.DICT,
             )
             texts = [t for t in data["text"] if t.strip()]
-            confidences = [c for c, t in zip(data["conf"], data["text"]) if t.strip()]
+            confidences = [c for c, t in zip(data["conf"], data["text"], strict=False) if t.strip()]
             avg_conf = sum(confidences) / len(confidences) if confidences else 0
             text = " ".join(texts)
             yield OCRResult(page=page, text=text, confidence=avg_conf / 100, language=self.languages)

@@ -19,18 +19,19 @@ Example:
 """
 from __future__ import annotations
 
-import asyncio
 import re
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from rank_bm25 import BM25Okapi
 
 from .config import settings
-from .store import VectorStore, load_vector_store
 from .embed import embed_query, embed_query_async
+from .store import load_vector_store
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass
@@ -64,7 +65,7 @@ class HybridSearcher:
         results = searcher.search("query", top_k=5, threshold=0.3)
     """
 
-    def __init__(self, store_path: Path | str, dimension: int):
+    def __init__(self, store_path: Path | str, dimension: int) -> None:
         """Initialize hybrid searcher.
 
         Args:
