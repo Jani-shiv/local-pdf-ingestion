@@ -1,4 +1,15 @@
-"""Contract analyzer: clause extraction, risk flags, obligation calendar."""
+"""Contract analyzer: clause extraction, risk flags, obligation calendar.
+
+This module provides:
+- Contract, Clause, Obligation dataclasses with serialization
+- ContractExtractor: LLM-based extraction from text chunks
+
+Example:
+    extractor = ContractExtractor(chat)
+    contracts = extractor.extract(chunks)
+    for c in contracts:
+        print(c.to_markdown())
+"""
 from __future__ import annotations
 
 import json
@@ -13,6 +24,15 @@ from ..chunk import Chunk
 
 @dataclass
 class Clause:
+    """Contract clause with risk assessment.
+
+    Attributes:
+        title: Clause title/heading
+        text: Full clause text
+        category: Clause category (payment, termination, liability, ip, confidentiality, etc.)
+        risk_level: "low", "medium", "high", or "critical"
+        page: Source page number
+    """
     title: str
     text: str
     category: str  # payment, termination, liability, ip, confidentiality, etc.
@@ -22,6 +42,15 @@ class Clause:
 
 @dataclass
 class Obligation:
+    """Contractual obligation with due date.
+
+    Attributes:
+        description: Obligation description
+        party: Responsible party - "me", "them", or "both"
+        due_date: Due date (YYYY-MM-DD)
+        frequency: "one-time", "monthly", "quarterly", "annually"
+        clause_ref: Reference to originating clause
+    """
     description: str
     party: str  # me, them, both
     due_date: Optional[str] = None
@@ -31,6 +60,20 @@ class Obligation:
 
 @dataclass
 class Contract:
+    """Structured contract analysis with clauses, obligations, and risk flags.
+
+    Attributes:
+        title: Contract title
+        parties: List of party names
+        effective_date: Contract start date (YYYY-MM-DD)
+        expiration_date: Contract end date (YYYY-MM-DD)
+        contract_type: Type (service, employment, nda, lease, etc.)
+        clauses: List of Clause objects
+        obligations: List of Obligation objects
+        risk_flags: List of risk warning strings
+        key_terms: Dictionary of key terms
+        source_page: Source document page number
+    """
     title: str
     parties: list[str] = field(default_factory=list)
     effective_date: Optional[str] = None
@@ -43,12 +86,15 @@ class Contract:
     source_page: Optional[int] = None
 
     def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     def to_json(self) -> str:
+        """Convert to JSON string."""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     def to_markdown(self) -> str:
+        """Convert to Markdown for display."""
         lines = [f"# Contract Analysis: {self.title}"]
         if self.parties:
             lines.append(f"**Parties:** {', '.join(self.parties)}")
@@ -84,10 +130,33 @@ class Contract:
 
 
 class ContractExtractor:
+    """Extract structured contract data from text chunks using LLM.
+
+    Uses RAGChat to extract clauses, obligations, and risk flags with
+    automatic risk flagging.
+
+    Example:
+        extractor = ContractExtractor(chat)
+        contracts = extractor.extract(chunks)
+    """
+
     def __init__(self, chat: RAGChat):
+        """Initialize extractor.
+
+        Args:
+            chat: RAGChat instance for LLM calls
+        """
         self.chat = chat
 
     def extract(self, chunks: list[Chunk]) -> list[Contract]:
+        """Extract contracts from list of chunks.
+
+        Args:
+            chunks: List of text chunks to process
+
+        Returns:
+            List of extracted Contract objects
+        """
         contracts = []
         for chunk in chunks:
             contract = self._extract_from_chunk(chunk)
@@ -96,6 +165,14 @@ class ContractExtractor:
         return contracts
 
     def _extract_from_chunk(self, chunk: Chunk) -> Optional[Contract]:
+        """Extract contract from single chunk using LLM.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Contract object or None if extraction fails
+        """
         prompt = f"""Analyze this contract text. Return ONLY valid JSON matching this schema:
 {{
   "title": "string",
@@ -127,6 +204,11 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             return self._fallback_extract(chunk)
 
     def _auto_flag_risks(self, contract: Contract) -> None:
+        """Automatically flag common contract risks.
+
+        Args:
+            contract: Contract to analyze
+        """
         risk_keywords = {
             "auto-renewal": "Automatic renewal without notice",
             "unlimited liability": "Unlimited liability exposure",
@@ -147,6 +229,14 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
                 contract.risk_flags.append(description)
 
     def _fallback_extract(self, chunk: Chunk) -> Optional[Contract]:
+        """Fallback regex-based extraction when LLM fails.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Contract object with minimal extraction
+        """
         text = chunk["text"]
         title = "Contract"
         title_match = re.search(r"(?i)(?:agreement|contract|mou|nda|lease|service\s+order)[:\s]*([A-Z][A-Za-z\s]+)", text)

@@ -1,11 +1,21 @@
-"""Export functionality for knowledge base (JSON, CSV, Markdown, Anki)."""
+"""Export functionality for knowledge base (JSON, CSV, Markdown, Anki).
+
+This module provides export functions for:
+- Knowledge base (JSON, CSV, Markdown)
+- Study guides (Anki CSV)
+- Domain objects (recipes, invoices, etc.)
+
+Example:
+    export_knowledge_base_json("./data/vs", 768, "./export/kb.json")
+    export_study_guide_anki(guide, "./export/flashcards.csv")
+"""
 from __future__ import annotations
 
 import csv
 import json
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -19,7 +29,16 @@ def export_knowledge_base_json(
     dimension: int,
     output_path: str | Path,
 ) -> Path:
-    """Export knowledge base to JSON format."""
+    """Export knowledge base to JSON format.
+
+    Args:
+        vector_store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        output_path: Output file path
+
+    Returns:
+        Path to exported file
+    """
     store = load_vector_store(vector_store_path, dimension)
     all_results = store.search(np.zeros(dimension, dtype=np.float32), store.count)
 
@@ -51,7 +70,16 @@ def export_knowledge_base_markdown(
     dimension: int,
     output_path: str | Path,
 ) -> Path:
-    """Export knowledge base to Markdown format."""
+    """Export knowledge base to Markdown format.
+
+    Args:
+        vector_store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        output_path: Output file path
+
+    Returns:
+        Path to exported file
+    """
     store = load_vector_store(vector_store_path, dimension)
     all_results = store.search(np.zeros(dimension, dtype=np.float32), store.count)
 
@@ -70,7 +98,16 @@ def export_knowledge_base_csv(
     dimension: int,
     output_path: str | Path,
 ) -> Path:
-    """Export knowledge base to CSV format."""
+    """Export knowledge base to CSV format.
+
+    Args:
+        vector_store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        output_path: Output file path
+
+    Returns:
+        Path to exported file
+    """
     store = load_vector_store(vector_store_path, dimension)
     all_results = store.search(np.zeros(dimension, dtype=np.float32), store.count)
 
@@ -86,11 +123,49 @@ def export_knowledge_base_csv(
     return output_path
 
 
+def export_knowledge_base(
+    vector_store_path: str | Path,
+    dimension: int,
+    output_path: str | Path,
+    format: Literal["json", "markdown", "csv"] = "json",
+) -> Path:
+    """Export knowledge base in specified format.
+
+    Args:
+        vector_store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        output_path: Output file path
+        format: Export format - "json", "markdown", or "csv"
+
+    Returns:
+        Path to exported file
+
+    Raises:
+        ValueError: If format is unsupported
+    """
+    if format == "json":
+        return export_knowledge_base_json(vector_store_path, dimension, output_path)
+    elif format == "markdown":
+        return export_knowledge_base_markdown(vector_store_path, dimension, output_path)
+    elif format == "csv":
+        return export_knowledge_base_csv(vector_store_path, dimension, output_path)
+    else:
+        raise ValueError(f"Unsupported format: {format}")
+
+
 def export_study_guide_anki(
     study_guide: StudyGuide,
     output_path: str | Path,
 ) -> Path:
-    """Export study guide as Anki-compatible CSV."""
+    """Export study guide as Anki-compatible CSV.
+
+    Args:
+        study_guide: StudyGuide object to export
+        output_path: Output file path
+
+    Returns:
+        Path to exported file
+    """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -102,9 +177,21 @@ def export_study_guide_anki(
 def export_domain_objects(
     objects: list[Any],
     output_path: str | Path,
-    format: str = "json",
+    format: Literal["json", "markdown", "csv"] = "json",
 ) -> Path:
-    """Export domain objects (recipes, invoices, etc.) to various formats."""
+    """Export domain objects (recipes, invoices, etc.) to various formats.
+
+    Args:
+        objects: List of domain objects with to_dict(), to_markdown(), to_csv_row()
+        output_path: Output file path
+        format: Export format - "json", "markdown", or "csv"
+
+    Returns:
+        Path to exported file
+
+    Raises:
+        ValueError: If format is unsupported
+    """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

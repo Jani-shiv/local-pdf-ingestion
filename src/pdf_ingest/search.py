@@ -1,4 +1,22 @@
-"""Hybrid search: vector similarity + keyword (BM25) search."""
+"""Hybrid search: vector similarity + keyword (BM25) search.
+
+This module provides hybrid search combining:
+- Vector similarity search (cosine similarity via FAISS/Chroma)
+- Keyword search (BM25 via rank_bm25)
+
+Features:
+- Configurable hybrid fusion
+- Async and sync interfaces
+- Threshold filtering
+- Source attribution (vector/keyword)
+
+Example:
+    searcher = HybridSearcher("./data/vs", dimension=768)
+    results = searcher.search("machine learning", top_k=5)
+    for r in results:
+        print(f"[{r.id}] page {r.page} score={r.score:.3f} ({r.source})")
+        print(r.text[:200])
+"""
 from __future__ import annotations
 
 import asyncio
@@ -17,6 +35,16 @@ from .embed import embed_query, embed_query_async
 
 @dataclass
 class SearchResult:
+    """A single search result with metadata.
+
+    Attributes:
+        id: Unique chunk identifier
+        text: Chunk text content
+        page: Page number (1-indexed)
+        chunk: Chunk index within page
+        score: Relevance score (0-1 for vector, BM25 score for keyword)
+        source: "vector" or "keyword" indicating search method
+    """
     id: str
     text: str
     page: int
@@ -26,7 +54,23 @@ class SearchResult:
 
 
 class HybridSearcher:
+    """Hybrid vector + keyword searcher.
+
+    Builds BM25 index on initialization for keyword search.
+    Combines vector similarity (cosine) with BM25 scores.
+
+    Example:
+        searcher = HybridSearcher("./data/vs", dimension=768)
+        results = searcher.search("query", top_k=5, threshold=0.3)
+    """
+
     def __init__(self, store_path: Path | str, dimension: int):
+        """Initialize hybrid searcher.
+
+        Args:
+            store_path: Path to vector store directory
+            dimension: Embedding vector dimension
+        """
         self.store = load_vector_store(store_path, dimension)
         self._bm25: BM25Okapi | None = None
         self._corpus: list[list[str]] = []
@@ -34,6 +78,7 @@ class HybridSearcher:
         self._build_bm25()
 
     def _build_bm25(self) -> None:
+        """Build BM25 index from all stored chunks."""
         if self.store.count == 0:
             return
         all_results = self.store.search(np.zeros(self.store.dimension, dtype=np.float32), self.store.count)
@@ -42,6 +87,14 @@ class HybridSearcher:
         self._bm25 = BM25Okapi(self._corpus)
 
     def _tokenize(self, text: str) -> list[str]:
+        """Tokenize text for BM25.
+
+        Args:
+            text: Input text
+
+        Returns:
+            List of lowercase word tokens
+        """
         return re.findall(r"\b\w+\b", text.lower())
 
     def search(
@@ -51,6 +104,17 @@ class HybridSearcher:
         threshold: float | None = None,
         use_hybrid: bool | None = None,
     ) -> list[SearchResult]:
+        """Search using hybrid vector + keyword search.
+
+        Args:
+            query: Search query string
+            top_k: Number of results (default: settings.top_k)
+            threshold: Minimum similarity score (default: settings.similarity_threshold)
+            use_hybrid: Enable hybrid search (default: settings.use_hybrid_search)
+
+        Returns:
+            List of SearchResult sorted by score descending
+        """
         top_k = top_k or settings.top_k
         threshold = threshold if threshold is not None else settings.similarity_threshold
         use_hybrid = use_hybrid if use_hybrid is not None else settings.use_hybrid_search
@@ -96,7 +160,17 @@ class HybridSearcher:
         threshold: float | None = None,
         use_hybrid: bool | None = None,
     ) -> list[SearchResult]:
-        """Async version of search using async embedding."""
+        """Async version of search using async embedding.
+
+        Args:
+            query: Search query string
+            top_k: Number of results
+            threshold: Minimum similarity score
+            use_hybrid: Enable hybrid search
+
+        Returns:
+            List of SearchResult sorted by score descending
+        """
         top_k = top_k or settings.top_k
         threshold = threshold if threshold is not None else settings.similarity_threshold
         use_hybrid = use_hybrid if use_hybrid is not None else settings.use_hybrid_search
@@ -144,6 +218,19 @@ def search(
     threshold: float | None = None,
     use_hybrid: bool | None = None,
 ) -> list[SearchResult]:
+    """Convenience function for hybrid search.
+
+    Args:
+        query: Search query string
+        store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        top_k: Number of results (default: settings.top_k)
+        threshold: Minimum similarity score (default: settings.similarity_threshold)
+        use_hybrid: Enable hybrid search (default: settings.use_hybrid_search)
+
+    Returns:
+        List of SearchResult sorted by score descending
+    """
     searcher = HybridSearcher(store_path, dimension)
     return searcher.search(query, top_k, threshold, use_hybrid)
 
@@ -156,6 +243,18 @@ async def search_async(
     threshold: float | None = None,
     use_hybrid: bool | None = None,
 ) -> list[SearchResult]:
-    """Async search function."""
+    """Async convenience function for hybrid search.
+
+    Args:
+        query: Search query string
+        store_path: Path to vector store directory
+        dimension: Embedding vector dimension
+        top_k: Number of results
+        threshold: Minimum similarity score
+        use_hybrid: Enable hybrid search
+
+    Returns:
+        List of SearchResult sorted by score descending
+    """
     searcher = HybridSearcher(store_path, dimension)
     return await searcher.search_async(query, top_k, threshold, use_hybrid)

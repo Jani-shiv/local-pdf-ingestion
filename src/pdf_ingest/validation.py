@@ -1,16 +1,26 @@
-"""Input validation and sanitization for CLI commands."""
+"""Input validation and sanitization for CLI commands.
+
+This module provides:
+- Validation functions for all input parameters
+- Sanitization for strings, paths, URLs
+- InputValidator class for command-level validation
+
+Example:
+    InputValidator.validate_ingest_args(args)
+    sanitized = sanitize_string(user_input)
+"""
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from .config import ConfigurationError
 
 
 # Allowed file extensions for ingestion
-ALLOWED_EXTENSIONS = {
+ALLOWED_EXTENSIONS: dict[str, list[str]] = {
     "pdf": [".pdf"],
     "audio": [".mp3", ".wav", ".m4a", ".flac", ".ogg"],
     "office": [".docx", ".xlsx", ".pptx"],
@@ -18,7 +28,7 @@ ALLOWED_EXTENSIONS = {
     "web": [],  # URLs handled separately
 }
 
-ALL_ALLOWED_EXTENSIONS = set()
+ALL_ALLOWED_EXTENSIONS: set[str] = set()
 for exts in ALLOWED_EXTENSIONS.values():
     ALL_ALLOWED_EXTENSIONS.update(exts)
 
@@ -42,7 +52,20 @@ DANGEROUS_PATTERNS = [
 
 
 def sanitize_string(value: str, max_length: int = 10000) -> str:
-    """Sanitize a string input."""
+    """Sanitize a string input.
+
+    Removes control characters, normalizes whitespace, and truncates.
+
+    Args:
+        value: Input string
+        max_length: Maximum allowed length
+
+    Returns:
+        Sanitized string
+
+    Raises:
+        ConfigurationError: If value is not a string
+    """
     if not isinstance(value, str):
         raise ConfigurationError(f"Expected string, got {type(value).__name__}")
 
@@ -57,8 +80,24 @@ def sanitize_string(value: str, max_length: int = 10000) -> str:
     return value.strip()
 
 
-def validate_file_path(path: str | Path, must_exist: bool = True, allowed_extensions: set[str] | None = None) -> Path:
-    """Validate and sanitize a file path."""
+def validate_file_path(
+    path: str | Path,
+    must_exist: bool = True,
+    allowed_extensions: set[str] | None = None,
+) -> Path:
+    """Validate and sanitize a file path.
+
+    Args:
+        path: File path string or Path object
+        must_exist: Require file to exist
+        allowed_extensions: Optional set of allowed extensions
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ConfigurationError: If validation fails
+    """
     path = Path(path).expanduser().resolve()
 
     if must_exist and not path.exists():
@@ -84,7 +123,18 @@ def validate_file_path(path: str | Path, must_exist: bool = True, allowed_extens
 
 
 def validate_directory_path(path: str | Path, must_exist: bool = True) -> Path:
-    """Validate and sanitize a directory path."""
+    """Validate and sanitize a directory path.
+
+    Args:
+        path: Directory path string or Path object
+        must_exist: Require directory to exist
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ConfigurationError: If validation fails
+    """
     path = Path(path).expanduser().resolve()
 
     if must_exist and not path.exists():
@@ -97,7 +147,17 @@ def validate_directory_path(path: str | Path, must_exist: bool = True) -> Path:
 
 
 def validate_url(url: str) -> str:
-    """Validate a URL."""
+    """Validate a URL.
+
+    Args:
+        url: URL string to validate
+
+    Returns:
+        Validated URL string
+
+    Raises:
+        ConfigurationError: If URL is invalid
+    """
     url = sanitize_string(url, max_length=2048)
 
     if not URL_REGEX.match(url):
@@ -111,7 +171,17 @@ def validate_url(url: str) -> str:
 
 
 def validate_urls(urls: list[str]) -> list[str]:
-    """Validate a list of URLs."""
+    """Validate a list of URLs.
+
+    Args:
+        urls: List of URL strings
+
+    Returns:
+        List of validated URLs
+
+    Raises:
+        ConfigurationError: If list is empty or contains invalid URLs
+    """
     if not urls:
         raise ConfigurationError("At least one URL must be provided")
 
@@ -123,7 +193,17 @@ def validate_urls(urls: list[str]) -> list[str]:
 
 
 def validate_chunk_size(value: int) -> int:
-    """Validate chunk size parameter."""
+    """Validate chunk size parameter.
+
+    Args:
+        value: Chunk size value
+
+    Returns:
+        Validated chunk size
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, int):
         raise ConfigurationError(f"Chunk size must be an integer, got {type(value).__name__}")
 
@@ -134,7 +214,18 @@ def validate_chunk_size(value: int) -> int:
 
 
 def validate_chunk_overlap(value: int, chunk_size: int) -> int:
-    """Validate chunk overlap parameter."""
+    """Validate chunk overlap parameter.
+
+    Args:
+        value: Overlap value
+        chunk_size: Associated chunk size
+
+    Returns:
+        Validated overlap value
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, int):
         raise ConfigurationError(f"Chunk overlap must be an integer, got {type(value).__name__}")
 
@@ -145,7 +236,17 @@ def validate_chunk_overlap(value: int, chunk_size: int) -> int:
 
 
 def validate_top_k(value: int) -> int:
-    """Validate top_k parameter."""
+    """Validate top_k parameter.
+
+    Args:
+        value: Top K value
+
+    Returns:
+        Validated top_k value
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, int):
         raise ConfigurationError(f"Top K must be an integer, got {type(value).__name__}")
 
@@ -156,7 +257,17 @@ def validate_top_k(value: int) -> int:
 
 
 def validate_threshold(value: float) -> float:
-    """Validate similarity threshold parameter."""
+    """Validate similarity threshold parameter.
+
+    Args:
+        value: Threshold value
+
+    Returns:
+        Validated threshold
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, (int, float)):
         raise ConfigurationError(f"Threshold must be a number, got {type(value).__name__}")
 
@@ -167,7 +278,17 @@ def validate_threshold(value: float) -> float:
 
 
 def validate_temperature(value: float) -> float:
-    """Validate temperature parameter."""
+    """Validate temperature parameter.
+
+    Args:
+        value: Temperature value
+
+    Returns:
+        Validated temperature
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, (int, float)):
         raise ConfigurationError(f"Temperature must be a number, got {type(value).__name__}")
 
@@ -178,7 +299,17 @@ def validate_temperature(value: float) -> float:
 
 
 def validate_max_tokens(value: int) -> int:
-    """Validate max_tokens parameter."""
+    """Validate max_tokens parameter.
+
+    Args:
+        value: Max tokens value
+
+    Returns:
+        Validated max tokens
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, int):
         raise ConfigurationError(f"Max tokens must be an integer, got {type(value).__name__}")
 
@@ -189,7 +320,17 @@ def validate_max_tokens(value: int) -> int:
 
 
 def validate_model_name(value: str) -> str:
-    """Validate model name."""
+    """Validate model name.
+
+    Args:
+        value: Model name string
+
+    Returns:
+        Validated model name
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     value = sanitize_string(value, max_length=256)
 
     if not value:
@@ -203,7 +344,17 @@ def validate_model_name(value: str) -> str:
 
 
 def validate_output_path(path: str | Path | None) -> Path | None:
-    """Validate output file path."""
+    """Validate output file path.
+
+    Args:
+        path: Output path or None
+
+    Returns:
+        Validated Path or None
+
+    Raises:
+        ConfigurationError: If path has unsupported extension
+    """
     if path is None:
         return None
 
@@ -224,14 +375,31 @@ def validate_output_path(path: str | Path | None) -> Path | None:
 
 
 def validate_store_path(path: str | Path) -> Path:
-    """Validate vector store path."""
+    """Validate vector store path.
+
+    Args:
+        path: Store path string or Path
+
+    Returns:
+        Validated Path (created if needed)
+    """
     path = Path(path).expanduser().resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def validate_query(query: str) -> str:
-    """Validate search/chat query."""
+    """Validate search/chat query.
+
+    Args:
+        query: Query string
+
+    Returns:
+        Validated query string
+
+    Raises:
+        ConfigurationError: If query is empty
+    """
     query = sanitize_string(query, max_length=5000)
 
     if not query:
@@ -241,7 +409,17 @@ def validate_query(query: str) -> str:
 
 
 def validate_extract_type(value: str) -> str:
-    """Validate extract type."""
+    """Validate extract type.
+
+    Args:
+        value: Extract type string
+
+    Returns:
+        Validated extract type
+
+    Raises:
+        ConfigurationError: If type is invalid
+    """
     allowed = {"recipes", "invoices", "medical", "contracts", "study"}
     if value not in allowed:
         raise ConfigurationError(f"Invalid extract type: {value}. Allowed: {', '.join(sorted(allowed))}")
@@ -249,7 +427,18 @@ def validate_extract_type(value: str) -> str:
 
 
 def validate_extract_format(value: str, extract_type: str) -> str:
-    """Validate extract output format."""
+    """Validate extract output format.
+
+    Args:
+        value: Format string
+        extract_type: Type of extraction
+
+    Returns:
+        Validated format
+
+    Raises:
+        ConfigurationError: If format is invalid for type
+    """
     allowed = {"json", "markdown"}
     if extract_type == "invoices":
         allowed.add("csv")
@@ -260,7 +449,17 @@ def validate_extract_format(value: str, extract_type: str) -> str:
 
 
 def validate_study_format(value: str) -> str:
-    """Validate study guide format."""
+    """Validate study guide format.
+
+    Args:
+        value: Format string
+
+    Returns:
+        Validated format
+
+    Raises:
+        ConfigurationError: If format is invalid
+    """
     allowed = {"flashcards", "mindmap", "quiz", "all"}
     if value not in allowed:
         raise ConfigurationError(f"Invalid study format: {value}. Allowed: {', '.join(sorted(allowed))}")
@@ -268,7 +467,17 @@ def validate_study_format(value: str) -> str:
 
 
 def validate_summarize_style(value: str) -> str:
-    """Validate summarize style."""
+    """Validate summarize style.
+
+    Args:
+        value: Style string
+
+    Returns:
+        Validated style
+
+    Raises:
+        ConfigurationError: If style is invalid
+    """
     allowed = {"concise", "detailed", "bullet"}
     if value not in allowed:
         raise ConfigurationError(f"Invalid style: {value}. Allowed: {', '.join(sorted(allowed))}")
@@ -276,7 +485,17 @@ def validate_summarize_style(value: str) -> str:
 
 
 def validate_chunk_strategy(value: str) -> str:
-    """Validate chunk strategy."""
+    """Validate chunk strategy.
+
+    Args:
+        value: Strategy string
+
+    Returns:
+        Validated strategy
+
+    Raises:
+        ConfigurationError: If strategy is invalid
+    """
     allowed = {"character", "semantic", "recursive"}
     if value not in allowed:
         raise ConfigurationError(f"Invalid chunk strategy: {value}. Allowed: {', '.join(sorted(allowed))}")
@@ -284,7 +503,17 @@ def validate_chunk_strategy(value: str) -> str:
 
 
 def validate_vector_store(value: str) -> str:
-    """Validate vector store type."""
+    """Validate vector store type.
+
+    Args:
+        value: Store type string
+
+    Returns:
+        Validated store type
+
+    Raises:
+        ConfigurationError: If type is invalid
+    """
     allowed = {"faiss", "chroma"}
     if value not in allowed:
         raise ConfigurationError(f"Invalid vector store: {value}. Allowed: {', '.join(sorted(allowed))}")
@@ -292,7 +521,17 @@ def validate_vector_store(value: str) -> str:
 
 
 def validate_log_level(value: str) -> str:
-    """Validate log level."""
+    """Validate log level.
+
+    Args:
+        value: Log level string
+
+    Returns:
+        Validated log level (uppercase)
+
+    Raises:
+        ConfigurationError: If level is invalid
+    """
     allowed = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     value_upper = value.upper()
     if value_upper not in allowed:
@@ -300,8 +539,26 @@ def validate_log_level(value: str) -> str:
     return value_upper
 
 
-def validate_positive_int(value: int, name: str, min_val: int = 1, max_val: int = 1000000) -> int:
-    """Validate positive integer."""
+def validate_positive_int(
+    value: int,
+    name: str,
+    min_val: int = 1,
+    max_val: int = 1000000,
+) -> int:
+    """Validate positive integer within range.
+
+    Args:
+        value: Integer value
+        name: Parameter name for error messages
+        min_val: Minimum allowed value
+        max_val: Maximum allowed value
+
+    Returns:
+        Validated integer
+
+    Raises:
+        ConfigurationError: If invalid
+    """
     if not isinstance(value, int):
         raise ConfigurationError(f"{name} must be an integer, got {type(value).__name__}")
 
@@ -312,11 +569,24 @@ def validate_positive_int(value: int, name: str, min_val: int = 1, max_val: int 
 
 
 class InputValidator:
-    """Comprehensive input validator for CLI commands."""
+    """Comprehensive input validator for CLI commands.
+
+    Provides static methods to validate arguments for each CLI command.
+
+    Example:
+        InputValidator.validate_ingest_args(args)
+    """
 
     @staticmethod
     def validate_ingest_args(args: Any) -> None:
-        """Validate ingest command arguments."""
+        """Validate ingest command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         # Validate paths
         for path_str in args.paths:
             path = Path(path_str)
@@ -333,7 +603,14 @@ class InputValidator:
 
     @staticmethod
     def validate_chat_args(args: Any) -> None:
-        """Validate chat command arguments."""
+        """Validate chat command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)
         validate_model_name(args.model)
         validate_top_k(args.top_k)
@@ -344,7 +621,14 @@ class InputValidator:
 
     @staticmethod
     def validate_search_args(args: Any) -> None:
-        """Validate search command arguments."""
+        """Validate search command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)
         validate_query(args.query)
         validate_top_k(args.top_k)
@@ -352,7 +636,14 @@ class InputValidator:
 
     @staticmethod
     def validate_summarize_args(args: Any) -> None:
-        """Validate summarize command arguments."""
+        """Validate summarize command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)
         validate_positive_int(args.max_length, "max_length", 100, 5000)
         validate_summarize_style(args.style)
@@ -360,14 +651,28 @@ class InputValidator:
 
     @staticmethod
     def validate_study_args(args: Any) -> None:
-        """Validate study command arguments."""
+        """Validate study command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)
         validate_study_format(args.format)
         validate_output_path(args.output)
 
     @staticmethod
     def validate_extract_args(args: Any) -> None:
-        """Validate extract command arguments."""
+        """Validate extract command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)
         validate_extract_type(args.type)
         validate_extract_format(args.format, args.type)
@@ -375,5 +680,12 @@ class InputValidator:
 
     @staticmethod
     def validate_list_args(args: Any) -> None:
-        """Validate list command arguments."""
+        """Validate list command arguments.
+
+        Args:
+            args: Parsed argparse namespace
+
+        Raises:
+            ConfigurationError: If any validation fails
+        """
         validate_store_path(args.store)

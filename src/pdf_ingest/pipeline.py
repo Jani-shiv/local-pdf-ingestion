@@ -1,10 +1,26 @@
-"""Unified ingestion pipeline: multi-source, multi-format, with domain extraction."""
+"""Unified ingestion pipeline: multi-source, multi-format, with domain extraction.
+
+This module provides:
+- IngestionPipeline: High-level API for ingesting various document types
+- KnowledgeBase: Query interface for chat, search, summarization, extraction
+- Batch ingestion with progress tracking
+- Domain-specific extraction (recipes, invoices, medical, contracts, study)
+
+Example:
+    pipeline = IngestionPipeline(vector_store_path="./data/kb")
+    pipeline.ingest_pdf("document.pdf")
+    pipeline.ingest_audio("meeting.wav")
+    pipeline.ingest_web(["https://example.com/article"])
+
+    kb = KnowledgeBase("./data/kb")
+    response = kb.ask("What are the key findings?")
+"""
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator, Callable
+from typing import Callable, Any
 
 import numpy as np
 from tqdm import tqdm
@@ -32,6 +48,15 @@ from .progress import progress_bar
 
 @dataclass
 class IngestionResult:
+    """Result of a single document ingestion.
+
+    Attributes:
+        source: Source identifier (filename, URL, etc.)
+        chunks: List of text chunks created
+        vectors: Embedding vectors for chunks
+        vector_store_path: Path to vector store
+        metadata: Additional metadata (page count, chunk count, etc.)
+    """
     source: str
     chunks: list[Chunk]
     vectors: np.ndarray
@@ -41,7 +66,15 @@ class IngestionResult:
 
 @dataclass
 class BatchIngestionResult:
-    """Result of batch ingestion operation."""
+    """Result of batch ingestion operation.
+
+    Attributes:
+        total_files: Total files processed
+        successful: Number of successfully ingested files
+        failed: Number of failed files
+        results: List of successful IngestionResults
+        errors: List of error dicts with file and error message
+    """
     total_files: int
     successful: int
     failed: int
@@ -50,6 +83,16 @@ class BatchIngestionResult:
 
 
 class IngestionPipeline:
+    """Unified pipeline for ingesting documents from multiple sources.
+
+    Supports: PDF, audio, web pages, Office documents (DOCX, XLSX, PPTX)
+
+    Example:
+        pipeline = IngestionPipeline("./data/kb")
+        result = pipeline.ingest_pdf("report.pdf")
+        print(f"Ingested {result.metadata['chunks']} chunks")
+    """
+
     def __init__(
         self,
         vector_store_path: Path | str | None = None,
@@ -57,12 +100,29 @@ class IngestionPipeline:
         overlap: int | None = None,
         strategy: str | None = None,
     ):
+        """Initialize ingestion pipeline.
+
+        Args:
+            vector_store_path: Directory for vector store (default: settings.vector_store_path)
+            chunk_size: Chunk size in characters (default: settings.chunk_size)
+            overlap: Chunk overlap in characters (default: settings.chunk_overlap)
+            strategy: Chunking strategy - "character", "semantic", "recursive" (default: settings.chunk_strategy)
+        """
         self.vector_store_path = Path(vector_store_path or settings.vector_store_path)
         self.chunk_size = chunk_size or settings.chunk_size
         self.overlap = overlap or settings.chunk_overlap
         self.strategy = strategy or settings.chunk_strategy
 
     def ingest_pdf(self, pdf_path: str | Path, use_ocr: bool = False) -> IngestionResult:
+        """Ingest a PDF document.
+
+        Args:
+            pdf_path: Path to PDF file
+            use_ocr: Use OCR for scanned PDFs (default: False)
+
+        Returns:
+            IngestionResult with chunks, vectors, and metadata
+        """
         pdf_path = Path(pdf_path)
         if use_ocr:
             ocr_results = extract_pdf_ocr(pdf_path)
@@ -86,6 +146,14 @@ class IngestionPipeline:
         )
 
     def ingest_audio(self, audio_path: str | Path) -> IngestionResult:
+        """Ingest an audio file (transcribes with faster-whisper).
+
+        Args:
+            audio_path: Path to audio file (mp3, wav, m4a, flac, ogg)
+
+        Returns:
+            IngestionResult with transcribed chunks
+        """
         text = extract_audio_text(audio_path)
         pages = [{"page": 1, "text": text}]
         chunks = chunk_pages(pages, self.chunk_size, self.overlap, self.strategy)
@@ -103,6 +171,14 @@ class IngestionPipeline:
         )
 
     def ingest_web(self, urls: list[str]) -> list[IngestionResult]:
+        """Ingest web pages from URLs.
+
+        Args:
+            urls: List of URLs to fetch and ingest
+
+        Returns:
+            List of IngestionResults for each URL
+        """
         results = []
         web_contents = extract_web_multiple(urls)
         for wc in web_contents:
@@ -123,6 +199,14 @@ class IngestionPipeline:
         return results
 
     def ingest_office(self, file_path: str | Path) -> IngestionResult:
+        """Ingest Office document (DOCX, XLSX, PPTX).
+
+        Args:
+            file_path: Path to Office file
+
+        Returns:
+            IngestionResult with extracted chunks
+        """
         contents = extract_office(file_path)
         all_chunks = []
         for content in contents:
@@ -149,7 +233,16 @@ class IngestionPipeline:
         recursive: bool = True,
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> list[IngestionResult]:
-        """Ingest all supported files in a directory with optional progress callback."""
+        """Ingest all supported files in a directory.
+
+        Args:
+            dir_path: Directory path
+            recursive: Recursively scan subdirectories (default: True)
+            progress_callback: Optional callback(filename, current, total)
+
+        Returns:
+            List of IngestionResults for each file
+        """
         dir_path = Path(dir_path)
         results = []
         pattern = "**/*" if recursive else "*"
@@ -189,7 +282,15 @@ class IngestionPipeline:
         file_paths: list[str | Path],
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> BatchIngestionResult:
-        """Ingest multiple files with progress tracking."""
+        """Ingest multiple files with progress tracking.
+
+        Args:
+            file_paths: List of file paths to ingest
+            progress_callback: Optional callback(filename, current, total)
+
+        Returns:
+            BatchIngestionResult with counts and errors
+        """
         results: list[IngestionResult] = []
         errors: list[dict] = []
         successful = 0
@@ -234,20 +335,41 @@ class IngestionPipeline:
         file_paths: list[str | Path],
         desc: str = "Batch ingesting",
     ) -> BatchIngestionResult:
-        """Ingest multiple files with a progress bar."""
-        def update_progress(name: str, current: int, total: int) -> None:
-            pass  # Progress bar handles this
+        """Ingest multiple files with a progress bar.
 
+        Args:
+            file_paths: List of file paths
+            desc: Progress bar description
+
+        Returns:
+            BatchIngestionResult with counts and errors
+        """
         with progress_bar(total=len(file_paths), desc=desc, unit="file") as pbar:
             def callback(name: str, current: int, total: int) -> None:
                 pbar.set_description(f"{desc} {name}")
-                pbar.update(0)  # Just update description
 
             return self.ingest_batch(file_paths, progress_callback=callback)
 
 
 class KnowledgeBase:
+    """Query interface for a populated vector store.
+
+    Provides high-level methods for chat, search, summarization, and extraction.
+
+    Example:
+        kb = KnowledgeBase("./data/kb")
+        response = kb.ask("Summarize the document")
+        summary = kb.summarize_all(style="bullet")
+        recipes = kb.extract_recipes()
+    """
+
     def __init__(self, vector_store_path: Path | str, dimension: int | None = None):
+        """Initialize knowledge base.
+
+        Args:
+            vector_store_path: Path to existing vector store
+            dimension: Embedding dimension (auto-detected if None)
+        """
         self.vector_store_path = Path(vector_store_path)
         # Try to detect dimension from existing store, default to 768
         if dimension is None:
@@ -262,30 +384,69 @@ class KnowledgeBase:
         if dimension is None:
             dimension = 768
         self.store = get_vector_store(self.vector_store_path, dimension)
-        self.chat = None
-        self.summarizer = None
+        self.chat: RAGChat | None = None
+        self.summarizer: Any = None
 
     def initialize_chat(self, **kwargs) -> RAGChat:
+        """Initialize RAG chat interface.
+
+        Args:
+            **kwargs: Passed to RAGChat constructor
+
+        Returns:
+            Initialized RAGChat instance
+        """
         self.chat = RAGChat(self.vector_store_path, self.store.dimension, **kwargs)
         return self.chat
 
-    def initialize_summarizer(self) -> "Summarizer":
+    def initialize_summarizer(self) -> Any:
+        """Initialize summarizer (requires chat).
+
+        Returns:
+            Initialized Summarizer instance
+        """
         if not self.chat:
             self.initialize_chat()
         self.summarizer = create_summarizer(self.store, self.chat)
         return self.summarizer
 
-    def ask(self, query: str, **kwargs) -> "ChatResponse":
+    def ask(self, query: str, **kwargs) -> Any:
+        """Ask a question (non-streaming).
+
+        Args:
+            query: Question to ask
+            **kwargs: Passed to chat (top_k, etc.)
+
+        Returns:
+            ChatResponse with answer and sources
+        """
         if not self.chat:
             self.initialize_chat()
         return self.chat.chat(query, **kwargs)
 
-    def ask_stream(self, query: str, **kwargs):
+    def ask_stream(self, query: str, **kwargs) -> Any:
+        """Ask a question (streaming).
+
+        Args:
+            query: Question to ask
+            **kwargs: Passed to chat (top_k, etc.)
+
+        Returns:
+            Generator of response chunks
+        """
         if not self.chat:
             self.initialize_chat()
         return self.chat.chat_stream(query, **kwargs)
 
     def summarize_all(self, **kwargs) -> Summary:
+        """Generate summary of all documents.
+
+        Args:
+            **kwargs: Passed to summarizer (max_length, style)
+
+        Returns:
+            Summary with text, key_points, and chunks_used
+        """
         if not self.summarizer:
             self.initialize_summarizer()
         # Get all chunks from store
@@ -295,6 +456,15 @@ class KnowledgeBase:
         return self.summarizer.summarize_all(chunks, **kwargs)
 
     def generate_study_guide(self, format: str = "flashcards", **kwargs) -> dict:
+        """Generate study materials.
+
+        Args:
+            format: Output format - "flashcards", "mindmap", "quiz", "all"
+            **kwargs: Passed to summarizer
+
+        Returns:
+            Study guide dictionary
+        """
         if not self.summarizer:
             self.initialize_summarizer()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -303,6 +473,11 @@ class KnowledgeBase:
         return self.summarizer.generate_study_guide(chunks, format, **kwargs)
 
     def extract_recipes(self) -> list[Recipe]:
+        """Extract recipes from knowledge base.
+
+        Returns:
+            List of Recipe objects
+        """
         if not self.chat:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -312,6 +487,11 @@ class KnowledgeBase:
         return extractor.extract(chunks)
 
     def extract_invoices(self) -> list[Invoice]:
+        """Extract invoices from knowledge base.
+
+        Returns:
+            List of Invoice objects
+        """
         if not self.chat:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -321,6 +501,11 @@ class KnowledgeBase:
         return extractor.extract(chunks)
 
     def extract_medical(self) -> list[MedicalReport]:
+        """Extract medical reports from knowledge base.
+
+        Returns:
+            List of MedicalReport objects
+        """
         if not self.chat:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -330,6 +515,11 @@ class KnowledgeBase:
         return extractor.extract(chunks)
 
     def extract_contracts(self) -> list[Contract]:
+        """Extract contracts from knowledge base.
+
+        Returns:
+            List of Contract objects
+        """
         if not self.chat:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -339,6 +529,11 @@ class KnowledgeBase:
         return extractor.extract(chunks)
 
     def extract_study_guides(self) -> list[StudyGuide]:
+        """Extract study guides from knowledge base.
+
+        Returns:
+            List of StudyGuide objects
+        """
         if not self.chat:
             self.initialize_chat()
         all_results = self.store.search(np.zeros(self.store.dimension), self.store.count)
@@ -349,8 +544,24 @@ class KnowledgeBase:
 
 
 def create_pipeline(**kwargs) -> IngestionPipeline:
+    """Factory function to create IngestionPipeline.
+
+    Args:
+        **kwargs: Passed to IngestionPipeline constructor
+
+    Returns:
+        Configured IngestionPipeline instance
+    """
     return IngestionPipeline(**kwargs)
 
 
 def create_knowledge_base(vector_store_path: Path | str) -> KnowledgeBase:
+    """Factory function to create KnowledgeBase.
+
+    Args:
+        vector_store_path: Path to vector store
+
+    Returns:
+        Configured KnowledgeBase instance
+    """
     return KnowledgeBase(vector_store_path)

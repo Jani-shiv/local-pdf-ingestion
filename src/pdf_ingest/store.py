@@ -1,52 +1,103 @@
-"""Step 4: save chunks, vectors and the settings that produced them. Vector store abstraction."""
+"""Step 4: save chunks, vectors and the settings that produced them. Vector store abstraction.
+
+This module provides:
+- VectorStore: Abstract base class for vector storage backends
+- FAISSStore: FAISS-based vector store (default, fast, file-based)
+- ChromaStore: ChromaDB-based vector store (persistent, feature-rich)
+- Dataset I/O: JSON serialization for chunks and embeddings
+"""
 from __future__ import annotations
 
 import json
 import pickle
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
-from tqdm import tqdm
 
 from .chunk import Chunk
 from .config import settings
 
 
-class VectorStore:
-    def __init__(self, path: Path | str, dimension: int):
-        self.path = Path(path)
-        self.dimension = dimension
-        self.path.mkdir(parents=True, exist_ok=True)
-        self._index = None
-        self._metadata: list[dict] = []
+class VectorStore(Protocol):
+    """Protocol defining the vector store interface.
+
+    All vector store implementations must provide these methods.
+    """
+
+    def __init__(self, path: Path | str, dimension: int) -> None:
+        """Initialize vector store.
+
+        Args:
+            path: Directory path for store persistence
+            dimension: Embedding vector dimension
+        """
+        ...
 
     def add(self, vectors: np.ndarray, chunks: list[Chunk]) -> None:
-        raise NotImplementedError
+        """Add vectors and associated chunk metadata.
+
+        Args:
+            vectors: Embedding vectors of shape (n_chunks, dimension)
+            chunks: List of Chunk metadata matching vectors
+        """
+        ...
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[float, dict]]:
-        raise NotImplementedError
+        """Search for similar vectors.
+
+        Args:
+            query_vector: Query embedding of shape (dimension,)
+            top_k: Number of results to return
+
+        Returns:
+            List of (score, metadata) tuples sorted by score descending
+        """
+        ...
 
     def save(self) -> None:
-        raise NotImplementedError
-
-    def load(self) -> None:
-        raise NotImplementedError
+        """Persist store to disk."""
+        ...
 
     @property
     def count(self) -> int:
-        raise NotImplementedError
+        """Return number of vectors in store."""
+        ...
 
 
-class FAISSStore(VectorStore):
+class FAISSStore:
+    """FAISS-based vector store using IndexFlatIP (inner product).
+
+    Features:
+    - Fast in-memory search with disk persistence
+    - Cosine similarity via L2 normalization + inner product
+    - Lightweight, no external dependencies beyond faiss-cpu
+
+    Example:
+        store = FAISSStore("./data/vs", dimension=768)
+        store.add(vectors, chunks)
+        results = store.search(query_vector, top_k=5)
+    """
+
     def __init__(self, path: Path | str, dimension: int):
-        super().__init__(path, dimension)
+        """Initialize FAISS store.
+
+        Args:
+            path: Directory for index and metadata files
+            dimension: Embedding vector dimension
+        """
+        self.path = Path(path)
+        self.dimension = dimension
+        self.path.mkdir(parents=True, exist_ok=True)
         self.index_path = self.path / "faiss.index"
         self.meta_path = self.path / "metadata.pkl"
+        self._index: Any = None
+        self._metadata: list[dict] = []
         self._load_or_create()
 
     def _load_or_create(self) -> None:
+        """Load existing index or create new one."""
         try:
             import faiss
             if self.index_path.exists() and self.meta_path.exists():
@@ -60,6 +111,12 @@ class FAISSStore(VectorStore):
             raise RuntimeError("faiss-cpu not installed. Run: pip install faiss-cpu")
 
     def add(self, vectors: np.ndarray, chunks: list[Chunk]) -> None:
+        """Add vectors and chunks to the store.
+
+        Args:
+            vectors: Embedding vectors of shape (n_chunks, dimension)
+            chunks: List of Chunk metadata matching vectors
+        """
         import faiss
         vectors = vectors.astype(np.float32)
         faiss.normalize_L2(vectors)
@@ -73,6 +130,15 @@ class FAISSStore(VectorStore):
             })
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[float, dict]]:
+        """Search for similar vectors using cosine similarity.
+
+        Args:
+            query_vector: Query embedding of shape (dimension,)
+            top_k: Number of results to return
+
+        Returns:
+            List of (score, metadata) tuples sorted by score descending
+        """
         import faiss
         query_vector = query_vector.astype(np.float32).reshape(1, -1)
         faiss.normalize_L2(query_vector)
@@ -84,6 +150,7 @@ class FAISSStore(VectorStore):
         return results
 
     def save(self) -> None:
+        """Persist index and metadata to disk."""
         import faiss
         faiss.write_index(self._index, str(self.index_path))
         with open(self.meta_path, "wb") as f:
@@ -91,17 +158,41 @@ class FAISSStore(VectorStore):
 
     @property
     def count(self) -> int:
+        """Return number of vectors in store."""
         return self._index.ntotal if self._index else 0
 
 
-class ChromaStore(VectorStore):
+class ChromaStore:
+    """ChromaDB-based vector store with persistent client.
+
+    Features:
+    - Persistent storage with ChromaDB
+    - Built-in HNSW indexing
+    - Rich metadata filtering
+    - HTTP API available separately
+
+    Example:
+        store = ChromaStore("./data/vs", dimension=768)
+        store.add(vectors, chunks)
+        results = store.search(query_vector, top_k=5)
+    """
+
     def __init__(self, path: Path | str, dimension: int):
-        super().__init__(path, dimension)
-        self.client = None
-        self.collection = None
+        """Initialize ChromaDB store.
+
+        Args:
+            path: Directory for ChromaDB persistence
+            dimension: Embedding vector dimension
+        """
+        self.path = Path(path)
+        self.dimension = dimension
+        self.path.mkdir(parents=True, exist_ok=True)
+        self.client: Any = None
+        self.collection: Any = None
         self._load_or_create()
 
     def _load_or_create(self) -> None:
+        """Load existing collection or create new one."""
         try:
             import chromadb
             from chromadb.config import Settings as ChromaSettings
@@ -117,6 +208,12 @@ class ChromaStore(VectorStore):
             raise RuntimeError("chromadb not installed. Run: pip install chromadb")
 
     def add(self, vectors: np.ndarray, chunks: list[Chunk]) -> None:
+        """Add vectors and chunks to the store.
+
+        Args:
+            vectors: Embedding vectors of shape (n_chunks, dimension)
+            chunks: List of Chunk metadata matching vectors
+        """
         ids = [chunk["id"] for chunk in chunks]
         documents = [chunk["text"] for chunk in chunks]
         metadatas = [{
@@ -132,6 +229,15 @@ class ChromaStore(VectorStore):
         )
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[float, dict]]:
+        """Search for similar vectors using cosine similarity.
+
+        Args:
+            query_vector: Query embedding of shape (dimension,)
+            top_k: Number of results to return
+
+        Returns:
+            List of (score, metadata) tuples sorted by score descending
+        """
         results = self.collection.query(
             query_embeddings=[query_vector.tolist()],
             n_results=top_k
@@ -154,14 +260,25 @@ class ChromaStore(VectorStore):
         return output
 
     def save(self) -> None:
+        """ChromaDB auto-persists, no explicit save needed."""
         pass
 
     @property
     def count(self) -> int:
+        """Return number of vectors in store."""
         return self.collection.count() if self.collection else 0
 
 
-def get_vector_store(path: Path | str, dimension: int) -> VectorStore:
+def get_vector_store(path: Path | str, dimension: int) -> FAISSStore | ChromaStore:
+    """Get vector store instance based on configuration.
+
+    Args:
+        path: Store directory path
+        dimension: Embedding vector dimension
+
+    Returns:
+        FAISSStore or ChromaStore instance based on settings.vector_store
+    """
     if settings.vector_store == "chroma":
         return ChromaStore(path, dimension)
     return FAISSStore(path, dimension)
@@ -177,6 +294,23 @@ def save_dataset(
     chunk_size: int,
     overlap: int,
 ) -> Path:
+    """Save chunks and embeddings to JSON dataset file.
+
+    Args:
+        path: Output file path
+        source: Source document identifier
+        chunks: List of chunks with metadata
+        vectors: List of embedding vectors matching chunks
+        model: Embedding model name
+        chunk_size: Chunk size used
+        overlap: Overlap used
+
+    Returns:
+        Path to saved file
+
+    Raises:
+        ValueError: If chunks and vectors length mismatch
+    """
     if len(chunks) != len(vectors):
         raise ValueError("chunks and vectors must have the same length")
 
@@ -200,6 +334,14 @@ def save_dataset(
 
 
 def load_dataset(path: str | Path) -> dict:
+    """Load dataset from JSON file.
+
+    Args:
+        path: Dataset file path
+
+    Returns:
+        Parsed dataset dictionary with meta and chunks
+    """
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -207,7 +349,17 @@ def save_vector_store(
     chunks: list[Chunk],
     vectors: np.ndarray,
     store_path: Path | str,
-) -> VectorStore:
+) -> FAISSStore | ChromaStore:
+    """Create and save vector store from chunks and vectors.
+
+    Args:
+        chunks: List of chunks with metadata
+        vectors: Embedding vectors of shape (n_chunks, dimension)
+        store_path: Directory for vector store
+
+    Returns:
+        Initialized and saved vector store instance
+    """
     dimension = vectors.shape[1] if len(vectors) > 0 else 0
     store = get_vector_store(store_path, dimension)
     store.add(vectors, chunks)
@@ -215,5 +367,14 @@ def save_vector_store(
     return store
 
 
-def load_vector_store(store_path: Path | str, dimension: int) -> VectorStore:
+def load_vector_store(store_path: Path | str, dimension: int) -> FAISSStore | ChromaStore:
+    """Load existing vector store.
+
+    Args:
+        store_path: Store directory path
+        dimension: Embedding vector dimension
+
+    Returns:
+        Loaded vector store instance
+    """
     return get_vector_store(store_path, dimension)

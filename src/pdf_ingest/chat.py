@@ -1,4 +1,15 @@
-"""RAG chat pipeline: retrieve -> prompt -> stream answer with citations."""
+"""RAG chat pipeline: retrieve -> prompt -> stream answer with citations.
+
+This module provides the RAGChat class for conversational QA over a knowledge base.
+
+Features:
+- Hybrid search retrieval (vector + keyword)
+- Streaming and non-streaming responses
+- Source citations with page/chunk references
+- Conversation history
+- Sync and async interfaces
+- Configurable LLM parameters
+"""
 from __future__ import annotations
 
 import asyncio
@@ -7,7 +18,7 @@ import httpx
 import requests
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator, Generator, Any
 
 from .config import settings
 from .search import SearchResult, search, search_async
@@ -17,18 +28,47 @@ from .store import load_vector_store
 
 @dataclass
 class ChatMessage:
+    """A single message in the conversation history.
+
+    Attributes:
+        role: Message role ("user" or "assistant")
+        content: Message text content
+    """
     role: str
     content: str
 
 
 @dataclass
 class ChatResponse:
+    """Response from RAG chat.
+
+    Attributes:
+        content: Generated answer text
+        sources: List of source SearchResults used for answer
+        model: LLM model name used
+    """
     content: str
     sources: list[SearchResult]
     model: str
 
 
 class RAGChat:
+    """Retrieval-Augmented Generation chat interface.
+
+    Combines hybrid search with LLM generation for grounded QA.
+
+    Example:
+        chat = RAGChat("./data/vs", dimension=768)
+        response = chat.chat("What is the main topic?")
+        print(response.content)
+        for src in response.sources:
+            print(f"  Source: {src.id}, page {src.page}")
+
+    Async Example:
+        chat = RAGChat("./data/vs", dimension=768)
+        response = await chat.chat_async("Summarize the document")
+    """
+
     def __init__(
         self,
         store_path: str | Path,
@@ -39,6 +79,17 @@ class RAGChat:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ):
+        """Initialize RAG chat.
+
+        Args:
+            store_path: Path to vector store directory
+            dimension: Embedding vector dimension
+            model: Ollama model name (default: settings.llm_model)
+            base_url: Ollama API base URL (default: settings.ollama_url)
+            system_prompt: System prompt (default: settings.system_prompt)
+            temperature: Sampling temperature (default: settings.temperature)
+            max_tokens: Max response tokens (default: settings.max_tokens)
+        """
         self.store_path = Path(store_path)
         self.dimension = dimension
         self.model = model or settings.llm_model
@@ -49,15 +100,44 @@ class RAGChat:
         self.history: list[ChatMessage] = []
 
     def _build_context(self, results: list[SearchResult]) -> str:
+        """Build context string from search results.
+
+        Args:
+            results: Search results to include in context
+
+        Returns:
+            Formatted context string with source markers
+        """
         parts = []
         for i, r in enumerate(results):
             parts.append(f"[Source {i+1}] (page {r.page}, chunk {r.chunk}):\n{r.text}\n")
         return "\n".join(parts)
 
     def _build_prompt(self, query: str, context: str) -> str:
+        """Build full prompt for LLM.
+
+        Args:
+            query: User question
+            context: Retrieved context
+
+        Returns:
+            Complete prompt string
+        """
         return f"{self.system_prompt}\n\nContext:\n{context}\n\nQuestion: {query}\n\nAnswer:"
 
     def _call_ollama(self, prompt: str, stream: bool = True) -> Generator[str, None, None] | str:
+        """Call Ollama API for text generation.
+
+        Args:
+            prompt: Input prompt
+            stream: Whether to stream response
+
+        Returns:
+            Generator of response chunks (stream=True) or full response (stream=False)
+
+        Raises:
+            RuntimeError: If Ollama unreachable or model not found
+        """
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -101,7 +181,15 @@ class RAGChat:
         prompt: str,
         client: httpx.AsyncClient | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Async version of _call_ollama for streaming."""
+        """Async streaming call to Ollama API.
+
+        Args:
+            prompt: Input prompt
+            client: Optional httpx client for connection reuse
+
+        Returns:
+            Async generator of response chunks
+        """
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -143,7 +231,15 @@ class RAGChat:
         prompt: str,
         client: httpx.AsyncClient | None = None,
     ) -> str:
-        """Async version of _call_ollama for non-streaming."""
+        """Async non-streaming call to Ollama API.
+
+        Args:
+            prompt: Input prompt
+            client: Optional httpx client for connection reuse
+
+        Returns:
+            Complete response text
+        """
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -170,6 +266,15 @@ class RAGChat:
             raise
 
     def chat(self, query: str, top_k: int | None = None) -> ChatResponse:
+        """Non-streaming chat with full response.
+
+        Args:
+            query: User question
+            top_k: Number of search results to retrieve (default: settings.top_k)
+
+        Returns:
+            ChatResponse with answer, sources, and model info
+        """
         results = search(query, self.store_path, self.dimension, top_k=top_k)
         context = self._build_context(results)
         prompt = self._build_prompt(query, context)
@@ -189,7 +294,15 @@ class RAGChat:
         )
 
     async def chat_async(self, query: str, top_k: int | None = None) -> ChatResponse:
-        """Async version of chat."""
+        """Async version of chat().
+
+        Args:
+            query: User question
+            top_k: Number of search results to retrieve
+
+        Returns:
+            ChatResponse with answer, sources, and model info
+        """
         results = await search_async(query, self.store_path, self.dimension, top_k=top_k)
         context = self._build_context(results)
         prompt = self._build_prompt(query, context)
@@ -209,6 +322,18 @@ class RAGChat:
         )
 
     def chat_stream(self, query: str, top_k: int | None = None) -> Generator[str, None, list[SearchResult]]:
+        """Streaming chat - yields response tokens.
+
+        Args:
+            query: User question
+            top_k: Number of search results to retrieve
+
+        Yields:
+            Response text chunks
+
+        Returns:
+            Search results (via generator return value)
+        """
         results = search(query, self.store_path, self.dimension, top_k=top_k)
         context = self._build_context(results)
         prompt = self._build_prompt(query, context)
@@ -225,7 +350,15 @@ class RAGChat:
         query: str,
         top_k: int | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Async streaming chat."""
+        """Async streaming chat.
+
+        Args:
+            query: User question
+            top_k: Number of search results to retrieve
+
+        Yields:
+            Response text chunks
+        """
         results = await search_async(query, self.store_path, self.dimension, top_k=top_k)
         context = self._build_context(results)
         prompt = self._build_prompt(query, context)
@@ -237,6 +370,7 @@ class RAGChat:
         # Note: we don't have the full content here in streaming mode
 
     def clear_history(self) -> None:
+        """Clear conversation history."""
         self.history.clear()
 
 
@@ -245,4 +379,14 @@ def create_chat(
     dimension: int,
     **kwargs,
 ) -> RAGChat:
+    """Factory function to create RAGChat instance.
+
+    Args:
+        store_path: Path to vector store
+        dimension: Embedding dimension
+        **kwargs: Additional RAGChat parameters
+
+    Returns:
+        Configured RAGChat instance
+    """
     return RAGChat(store_path, dimension, **kwargs)

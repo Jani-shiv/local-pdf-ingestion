@@ -1,4 +1,15 @@
-"""Medical report extractor: patient-friendly summaries with flagged values."""
+"""Medical report extractor: patient-friendly summaries with flagged values.
+
+This module provides:
+- MedicalReport, LabValue dataclasses with serialization
+- MedicalExtractor: LLM-based extraction from text chunks
+
+Example:
+    extractor = MedicalExtractor(chat)
+    reports = extractor.extract(chunks)
+    for r in reports:
+        print(r.to_markdown())
+"""
 from __future__ import annotations
 
 import json
@@ -12,6 +23,16 @@ from ..chunk import Chunk
 
 @dataclass
 class LabValue:
+    """Laboratory test result with reference range and status.
+
+    Attributes:
+        name: Test name (e.g., "Glucose", "Hemoglobin A1c")
+        value: Test value as string
+        unit: Unit of measure (e.g., "mg/dL", "%")
+        reference_range: Normal reference range (e.g., "70-100")
+        status: "normal", "high", "low", or "critical"
+        flag: True if outside normal range
+    """
     name: str
     value: str
     unit: Optional[str] = None
@@ -22,6 +43,21 @@ class LabValue:
 
 @dataclass
 class MedicalReport:
+    """Structured medical report with lab values and summaries.
+
+    Attributes:
+        patient_name: Patient full name
+        report_date: Report date (YYYY-MM-DD)
+        provider: Healthcare provider/facility
+        report_type: Type of report (blood work, imaging, pathology, etc.)
+        summary: Patient-friendly summary (3-5 sentences)
+        lab_values: List of LabValue objects
+        diagnoses: List of diagnoses
+        medications: List of current medications
+        recommendations: List of recommendations
+        flagged_items: Items requiring attention
+        source_page: Source document page number
+    """
     patient_name: Optional[str] = None
     report_date: Optional[str] = None
     provider: Optional[str] = None
@@ -35,12 +71,15 @@ class MedicalReport:
     source_page: Optional[int] = None
 
     def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     def to_json(self) -> str:
+        """Convert to JSON string."""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     def to_markdown(self) -> str:
+        """Convert to Markdown for display."""
         lines = ["# Medical Report Summary"]
         if self.patient_name:
             lines.append(f"**Patient:** {self.patient_name}")
@@ -87,10 +126,32 @@ class MedicalReport:
 
 
 class MedicalExtractor:
+    """Extract structured medical reports from text chunks using LLM.
+
+    Uses RAGChat to extract medical information with fallback to regex parsing.
+
+    Example:
+        extractor = MedicalExtractor(chat)
+        reports = extractor.extract(chunks)
+    """
+
     def __init__(self, chat: RAGChat):
+        """Initialize extractor.
+
+        Args:
+            chat: RAGChat instance for LLM calls
+        """
         self.chat = chat
 
     def extract(self, chunks: list[Chunk]) -> list[MedicalReport]:
+        """Extract medical reports from list of chunks.
+
+        Args:
+            chunks: List of text chunks to process
+
+        Returns:
+            List of extracted MedicalReport objects
+        """
         reports = []
         for chunk in chunks:
             report = self._extract_from_chunk(chunk)
@@ -99,6 +160,14 @@ class MedicalExtractor:
         return reports
 
     def _extract_from_chunk(self, chunk: Chunk) -> Optional[MedicalReport]:
+        """Extract medical report from single chunk using LLM.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            MedicalReport object or None if extraction fails
+        """
         prompt = f"""Extract medical report information from this text. Return ONLY valid JSON matching this schema:
 {{
   "patient_name": "string or null",
@@ -125,27 +194,35 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             report = MedicalReport(**data)
             # Auto-flag based on status
             for lv in report.lab_values:
+                if isinstance(lv, dict):
+                    status = lv.get("status")
+                else:
+                    status = getattr(lv, "status", None)
+                if status in ("high", "low", "critical"):
                     if isinstance(lv, dict):
-                        status = lv.get("status")
+                        lv["flag"] = True
+                        name = lv.get("name", "")
+                        value = lv.get("value", "")
+                        unit = lv.get("unit", "")
                     else:
-                        status = getattr(lv, "status", None)
-                    if status in ("high", "low", "critical"):
-                        if isinstance(lv, dict):
-                            lv["flag"] = True
-                            name = lv.get("name", "")
-                            value = lv.get("value", "")
-                            unit = lv.get("unit", "")
-                        else:
-                            lv.flag = True
-                            name = lv.name
-                            value = lv.value
-                            unit = lv.unit or ""
-                        report.flagged_items.append(f"{name}: {value} {unit} ({status})")
+                        lv.flag = True
+                        name = lv.name
+                        value = lv.value
+                        unit = lv.unit or ""
+                    report.flagged_items.append(f"{name}: {value} {unit} ({status})")
             return report
         except (json.JSONDecodeError, TypeError):
             return self._fallback_extract(chunk)
 
     def _fallback_extract(self, chunk: Chunk) -> Optional[MedicalReport]:
+        """Fallback regex-based extraction when LLM fails.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            MedicalReport object with best-effort extraction
+        """
         text = chunk["text"]
         lab_values = []
 

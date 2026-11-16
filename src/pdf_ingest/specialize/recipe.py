@@ -1,9 +1,20 @@
-"""Recipe extractor: structured output from cookbooks/recipe PDFs."""
+"""Recipe extractor: structured output from cookbooks/recipe PDFs.
+
+This module provides:
+- Recipe, Ingredient dataclasses with serialization
+- RecipeExtractor: LLM-based extraction from text chunks
+
+Example:
+    extractor = RecipeExtractor(chat)
+    recipes = extractor.extract(chunks)
+    for r in recipes:
+        print(r.to_markdown())
+"""
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import Optional
 
 from ..chat import RAGChat
@@ -12,6 +23,14 @@ from ..chunk import Chunk
 
 @dataclass
 class Ingredient:
+    """Recipe ingredient with quantity and notes.
+
+    Attributes:
+        name: Ingredient name (e.g., "all-purpose flour")
+        amount: Quantity as string (e.g., "2", "1/2")
+        unit: Unit of measure (e.g., "cups", "tbsp", "g")
+        notes: Preparation notes (e.g., "sifted", "room temperature")
+    """
     name: str
     amount: Optional[str] = None
     unit: Optional[str] = None
@@ -20,32 +39,41 @@ class Ingredient:
 
 @dataclass
 class Recipe:
+    """Structured recipe with ingredients, instructions, and metadata.
+
+    Attributes:
+        title: Recipe name
+        description: Brief description
+        servings: Number of servings
+        prep_time_minutes: Preparation time in minutes
+        cook_time_minutes: Cooking time in minutes
+        ingredients: List of Ingredient objects
+        instructions: Step-by-step instructions
+        nutrition: Per-serving nutrition info
+        tags: Category tags (e.g., "dessert", "vegetarian")
+        source_page: Source document page number
+    """
     title: str
     description: Optional[str] = None
     servings: Optional[int] = None
     prep_time_minutes: Optional[int] = None
     cook_time_minutes: Optional[int] = None
-    ingredients: list[Ingredient] = None
-    instructions: list[str] = None
+    ingredients: list[Ingredient] = field(default_factory=list)
+    instructions: list[str] = field(default_factory=list)
     nutrition: Optional[dict] = None
-    tags: list[str] = None
+    tags: list[str] = field(default_factory=list)
     source_page: Optional[int] = None
 
-    def __post_init__(self):
-        if self.ingredients is None:
-            self.ingredients = []
-        if self.instructions is None:
-            self.instructions = []
-        if self.tags is None:
-            self.tags = []
-
     def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     def to_json(self) -> str:
+        """Convert to JSON string."""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     def to_markdown(self) -> str:
+        """Convert to Markdown for display."""
         lines = [f"# {self.title}"]
         if self.description:
             lines.append(f"\n{self.description}\n")
@@ -83,10 +111,32 @@ class Recipe:
 
 
 class RecipeExtractor:
+    """Extract structured recipes from text chunks using LLM.
+
+    Uses RAGChat to extract recipe information with fallback to regex parsing.
+
+    Example:
+        extractor = RecipeExtractor(chat)
+        recipes = extractor.extract(chunks)
+    """
+
     def __init__(self, chat: RAGChat):
+        """Initialize extractor.
+
+        Args:
+            chat: RAGChat instance for LLM calls
+        """
         self.chat = chat
 
     def extract(self, chunks: list[Chunk]) -> list[Recipe]:
+        """Extract recipes from list of chunks.
+
+        Args:
+            chunks: List of text chunks to process
+
+        Returns:
+            List of extracted Recipe objects
+        """
         recipes = []
         for chunk in chunks:
             recipe = self._extract_from_chunk(chunk)
@@ -95,6 +145,14 @@ class RecipeExtractor:
         return recipes
 
     def _extract_from_chunk(self, chunk: Chunk) -> Optional[Recipe]:
+        """Extract recipe from single chunk using LLM.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Recipe object or None if extraction fails
+        """
         prompt = f"""Extract recipe information from this text. Return ONLY valid JSON matching this schema:
 {{
   "title": "string",
@@ -120,6 +178,14 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             return self._fallback_extract(chunk)
 
     def _fallback_extract(self, chunk: Chunk) -> Optional[Recipe]:
+        """Fallback regex-based extraction when LLM fails.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Recipe object with best-effort extraction
+        """
         text = chunk["text"]
         title_match = re.search(r"(?i)^(?:recipe\s*[:|-]\s*)?([A-Z][A-Za-z\s]+)", text)
         title = title_match.group(1).strip() if title_match else f"Recipe from page {chunk['page']}"

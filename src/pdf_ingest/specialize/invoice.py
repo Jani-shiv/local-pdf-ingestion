@@ -1,4 +1,15 @@
-"""Invoice/Receipt extractor: structured data for expense tracking."""
+"""Invoice/Receipt extractor: structured data for expense tracking.
+
+This module provides:
+- Invoice, LineItem dataclasses with serialization
+- InvoiceExtractor: LLM-based extraction from text chunks
+
+Example:
+    extractor = InvoiceExtractor(chat)
+    invoices = extractor.extract(chunks)
+    for inv in invoices:
+        print(inv.to_markdown())
+"""
 from __future__ import annotations
 
 import json
@@ -13,6 +24,14 @@ from ..chunk import Chunk
 
 @dataclass
 class LineItem:
+    """Invoice line item.
+
+    Attributes:
+        description: Item description
+        quantity: Quantity ordered
+        unit_price: Price per unit
+        total: Line total (quantity * unit_price)
+    """
     description: str
     quantity: Optional[float] = None
     unit_price: Optional[float] = None
@@ -21,6 +40,22 @@ class LineItem:
 
 @dataclass
 class Invoice:
+    """Structured invoice/receipt data.
+
+    Attributes:
+        vendor: Vendor/business name
+        invoice_number: Invoice/reference number
+        date: Invoice date (YYYY-MM-DD)
+        due_date: Payment due date (YYYY-MM-DD)
+        subtotal: Subtotal before tax
+        tax: Tax amount
+        total: Total amount
+        currency: Currency code (default: USD)
+        line_items: List of LineItem objects
+        category: Expense category
+        payment_method: Payment method used
+        source_page: Source document page number
+    """
     vendor: str
     invoice_number: Optional[str] = None
     date: Optional[str] = None
@@ -29,18 +64,21 @@ class Invoice:
     tax: Optional[float] = None
     total: Optional[float] = None
     currency: str = "USD"
-    line_items: list[LineItem] = field(default_factory=list)
+    line_items: list["LineItem"] = field(default_factory=list)
     category: Optional[str] = None
     payment_method: Optional[str] = None
     source_page: Optional[int] = None
 
     def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     def to_json(self) -> str:
+        """Convert to JSON string."""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     def to_markdown(self) -> str:
+        """Convert to Markdown for display."""
         lines = [f"# Invoice: {self.vendor}"]
         if self.invoice_number:
             lines.append(f"**Invoice #:** {self.invoice_number}")
@@ -66,12 +104,49 @@ class Invoice:
 
         return "\n".join(lines)
 
+    def to_csv_row(self) -> list[str]:
+        """Convert to CSV row for spreadsheet export."""
+        return [
+            self.vendor,
+            self.date or "",
+            str(self.total or ""),
+            self.category or "",
+            str(len(self.line_items)),
+        ]
+
+    @property
+    def csv_headers(self) -> list[str]:
+        """CSV headers for invoice export."""
+        return ["Vendor", "Date", "Total", "Category", "Items"]
+
 
 class InvoiceExtractor:
+    """Extract structured invoices from text chunks using LLM.
+
+    Uses RAGChat to extract invoice information with fallback to regex parsing.
+
+    Example:
+        extractor = InvoiceExtractor(chat)
+        invoices = extractor.extract(chunks)
+    """
+
     def __init__(self, chat: RAGChat):
+        """Initialize extractor.
+
+        Args:
+            chat: RAGChat instance for LLM calls
+        """
         self.chat = chat
 
     def extract(self, chunks: list[Chunk]) -> list[Invoice]:
+        """Extract invoices from list of chunks.
+
+        Args:
+            chunks: List of text chunks to process
+
+        Returns:
+            List of extracted Invoice objects
+        """
         invoices = []
         for chunk in chunks:
             invoice = self._extract_from_chunk(chunk)
@@ -80,6 +155,14 @@ class InvoiceExtractor:
         return invoices
 
     def _extract_from_chunk(self, chunk: Chunk) -> Optional[Invoice]:
+        """Extract invoice from single chunk using LLM.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Invoice object or None if extraction fails
+        """
         prompt = f"""Extract invoice/receipt information from this text. Return ONLY valid JSON matching this schema:
 {{
   "vendor": "string",
@@ -107,6 +190,14 @@ Text (page {chunk['page']}, chunk {chunk['chunk']}):
             return self._fallback_extract(chunk)
 
     def _fallback_extract(self, chunk: Chunk) -> Optional[Invoice]:
+        """Fallback regex-based extraction when LLM fails.
+
+        Args:
+            chunk: Text chunk to process
+
+        Returns:
+            Invoice object with best-effort extraction
+        """
         text = chunk["text"]
         vendor = "Unknown Vendor"
         total = None
