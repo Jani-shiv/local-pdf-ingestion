@@ -21,6 +21,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    def __init__(self, *args, **kwargs) -> None:
+        try:
+            super().__init__(*args, **kwargs)
+        except Exception as exc:
+            # Unwrap ValidationError to ConfigurationError if present in error ctx
+            from pydantic import ValidationError
+
+            if isinstance(exc, ValidationError):
+                for err in exc.errors():
+                    ctx_err = err.get("ctx", {}).get("error")
+                    if isinstance(ctx_err, ConfigurationError):
+                        raise ctx_err from exc
+                raise ConfigurationError(str(exc)) from exc
+            raise
+
     # Ollama
     ollama_url: str = Field(
         default="http://localhost:11434",

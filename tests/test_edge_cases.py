@@ -360,7 +360,10 @@ class TestAsyncSearch:
         async def mock_embed(q):
             return np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-        monkeypatch.setattr("pdf_ingest.search.embed_query_async", mock_embed)
+        import sys
+
+        search_module = sys.modules["pdf_ingest.search"]
+        monkeypatch.setattr(search_module, "embed_query_async", mock_embed)
 
         searcher = HybridSearcher(tmp_path / "faiss", dimension=3)
         results = await searcher.search_async("test", top_k=1)
@@ -522,8 +525,10 @@ class TestVectorStoreEdgeCases:
         mock_client = Mock()
         mock_collection = Mock()
         mock_client.get_or_create_collection.return_value = mock_collection
+        mock_chromadb = Mock()
+        mock_chromadb.PersistentClient.return_value = mock_client
 
-        with patch("pdf_ingest.store.chromadb.PersistentClient", return_value=mock_client):
+        with patch.dict("sys.modules", {"chromadb": mock_chromadb, "chromadb.config": Mock()}):
             store = ChromaStore(tmp_path / "chroma", dimension=3)
             assert store.collection == mock_collection
 
@@ -536,7 +541,8 @@ class TestVectorStoreEdgeCases:
     def test_get_vector_store_chroma(self, monkeypatch) -> None:
         """Test get_vector_store returns ChromaStore when configured."""
         monkeypatch.setattr("pdf_ingest.store.settings.vector_store", "chroma")
-        with patch("pdf_ingest.store.chromadb"):
+        mock_chromadb = Mock()
+        with patch.dict("sys.modules", {"chromadb": mock_chromadb, "chromadb.config": Mock()}):
             store = get_vector_store("/tmp/test", 768)
             assert isinstance(store, ChromaStore)
 

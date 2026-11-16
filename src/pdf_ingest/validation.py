@@ -46,8 +46,11 @@ URL_REGEX = re.compile(
 
 # Sanitization patterns
 DANGEROUS_PATTERNS = [
-    (re.compile(r"[\x00-\x1f\x7f-\x9f]"), ""),  # Control characters
-    (re.compile(r"[\r\n]+"), " "),  # Newlines
+    (re.compile(r"[\r\n]+"), " "),  # Newlines to space first
+    (
+        re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]"),
+        "",
+    ),  # Control characters excluding whitespace
     (re.compile(r"\s{2,}"), " "),  # Multiple spaces
 ]
 
@@ -158,11 +161,12 @@ def validate_url(url: str) -> str:
     """
     url = sanitize_string(url, max_length=2048)
 
+    parsed = urlparse(url)
+    if parsed.scheme and parsed.scheme not in ("http", "https"):
+        raise ConfigurationError(f"URL must use http or https scheme: {url}")
+
     if not URL_REGEX.match(url):
         raise ConfigurationError(f"Invalid URL format: {url}")
-
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
         raise ConfigurationError(f"URL must use http or https: {url}")
 
     return url

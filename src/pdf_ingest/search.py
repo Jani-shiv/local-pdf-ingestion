@@ -124,6 +124,9 @@ class HybridSearcher:
         threshold = threshold if threshold is not None else settings.similarity_threshold
         use_hybrid = use_hybrid if use_hybrid is not None else settings.use_hybrid_search
 
+        if getattr(self.store, "count", 0) == 0:
+            return []
+
         query_vector = embed_query(query)
         vector_results = self.store.search(query_vector, top_k * 2 if use_hybrid else top_k)
 
@@ -183,6 +186,9 @@ class HybridSearcher:
         top_k = top_k or settings.top_k
         threshold = threshold if threshold is not None else settings.similarity_threshold
         use_hybrid = use_hybrid if use_hybrid is not None else settings.use_hybrid_search
+
+        if getattr(self.store, "count", 0) == 0:
+            return []
 
         query_vector = await embed_query_async(query)
         vector_results = self.store.search(query_vector, top_k * 2 if use_hybrid else top_k)

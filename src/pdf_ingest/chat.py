@@ -57,6 +57,7 @@ class ChatResponse:
 
 
 class RAGChat:
+    ChatMessage = ChatMessage
     """Retrieval-Augmented Generation chat interface.
 
     Combines hybrid search with LLM generation for grounded QA.
