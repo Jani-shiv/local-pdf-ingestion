@@ -10,7 +10,12 @@ from .embed import (
     embed_query_async,
     EmbeddingError,
 )
-from .extract import extract_pages, Page
+from .extract import (
+    extract_pages,
+    extract_pages_with_metadata,
+    Page,
+    DocumentMetadata,
+)
 from .extract_audio import extract_audio_text, extract_audio_segments, AudioSegment
 from .extract_web import extract_web_content, extract_web_multiple, WebContent
 from .extract_ocr import extract_pdf_ocr, extract_image_ocr, OCRResult
@@ -55,12 +60,19 @@ from .progress import (
     format_duration,
     format_bytes,
 )
+from .plugins import (
+    ExtractorPlugin,
+    PluginRegistry,
+    register_extractor,
+    get_extractor,
+)
+from .benchmark import run_benchmark, BenchmarkResult
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     # Core
-    "Page", "extract_pages",
+    "Page", "extract_pages", "extract_pages_with_metadata", "DocumentMetadata",
     "Chunk", "chunk_pages", "split_text",
     "embed_texts", "embed_query", "embed_texts_async", "embed_query_async", "EmbeddingError",
     "save_dataset", "load_dataset",
@@ -89,4 +101,8 @@ __all__ = [
     # Progress
     "ProgressBar", "progress_bar", "track", "track_range", "MultiProgress", "Spinner",
     "format_duration", "format_bytes",
+    # Plugins
+    "ExtractorPlugin", "PluginRegistry", "register_extractor", "get_extractor",
+    # Benchmark
+    "run_benchmark", "BenchmarkResult",
 ]
